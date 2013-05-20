@@ -44,7 +44,8 @@ class SVGAttributeReader:
             'y2': self.dimensionAttrib,
             'r': self.dimensionAttrib,
             'cx': self.dimensionAttrib,
-            'cy': self.dimensionAttrib
+            'cy': self.dimensionAttrib,
+            '{http://www.w3.org/1999/xlink}href': self.stringAttrib
         }
 
 

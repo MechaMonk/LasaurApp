@@ -168,10 +168,10 @@ class SerialManagerClass:
     
             if gcode[0] == '%':
                 return
-            elif gcode[0] == '!':
+            elif gcode[0] == '!' or gcode[0] == '~':
                 self.cancel_queue()
                 self.reset_status()
-                self.tx_buffer = '!\n'
+                self.tx_buffer = gcode[0]+'\n'
                 self.job_size = 2
                 self.job_active = True
             else:
@@ -236,7 +236,7 @@ class SerialManagerClass:
                 if len(chars) > 0:
                     ## check for data request
                     if self.ready_char in chars:
-                        # print "=========================== READY"
+                        print "=========================== READY"
                         self.nRequested = self.TX_CHUNK_SIZE
                         #remove control chars
                         chars = chars.replace(self.ready_char, "")
@@ -275,11 +275,11 @@ class SerialManagerClass:
                             sys.stdout.flush()
                         self.tx_buffer = self.tx_buffer[actuallySent:]
                     else:
-                        if (time.time()-self.last_request_ready) > 2.0:
+                        if (time.time()-self.last_request_ready) > 0.5:
                             # ask to send a ready byte
                             # only ask for this when sending is on hold
                             # only ask once (and after a big time out)
-                            # print "=========================== REQUEST READY"
+                            print "=========================== REQUEST READY"
                             try:
                                 actuallySent = self.device.write(self.request_ready_char)
                             except serial.SerialTimeoutException:

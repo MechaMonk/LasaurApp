@@ -13,13 +13,13 @@ APPNAME = "lasaurapp"
 VERSION = "13.02"
 COMPANY_NAME = "com.nortd.labs"
 SERIAL_PORT = None
-BITSPERSECOND = 57600
-NETWORK_PORT = 4444
+BITSPERSECOND = 115200
+NETWORK_PORT = 5555
 HARDWARE = 'x86'  # also: 'beaglebone', 'raspberrypi'
 CONFIG_FILE = "lasaurapp.conf"
 COOKIE_KEY = 'secret_key_jkn23489hsdf'
 FIRMWARE = "LasaurGrbl.hex"
-TOLERANCE = 0.08
+TOLERANCE = 0.00635
 
 
 if os.name == 'nt': #sys.platform == 'win32': 
@@ -435,7 +435,7 @@ def svg_upload():
         if filename[-4:] in ['.dxf', '.DXF']: 
             res = read_dxf(filedata, TOLERANCE, optimize)
         else:
-            res = read_svg(filedata, [1220,610], TOLERANCE, dpi_forced, optimize)
+            res = read_svg(filedata, [400,250], TOLERANCE, dpi_forced, optimize)
         # print boundarys
         jsondata = json.dumps(res)
         # print "returning %d items as %d bytes." % (len(res['boundarys']), len(jsondata))

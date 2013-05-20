@@ -43,7 +43,7 @@ $(document).ready(function(){
   $('#gcode_bbox_submit').tooltip();
   $("#gcode_bbox_submit").click(function(e) {
     var gcodedata = $('#gcode_program').val();
-    GcodeReader.parse(gcodedata, 1);
+    GcodeReader.parse(gcodedata, 1.0);
     var gcode_bbox = GcodeReader.getBboxGcode();
     var header = "G90\nG0F"+app_settings.max_seek_speed+"\n"
     var footer = "G00X0Y0F"+app_settings.max_seek_speed+"\n"
@@ -67,7 +67,8 @@ $(document).ready(function(){
   $('#gcode_program').blur(function() {
     var gcodedata = $('#gcode_program').val();
     canvas.background('#ffffff'); 
-  	GcodeReader.parse(gcodedata, 0.25);
+  	//GcodeReader.parse(gcodedata, 1220.0 / 325 * 0.25);
+  	GcodeReader.parse(gcodedata, 0.75);
   	GcodeReader.draw(canvas, '#000000');
     var stats = GcodeReader.getStats();
     var length = stats.cuttingPathLength; 

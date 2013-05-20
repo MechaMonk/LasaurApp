@@ -4,11 +4,15 @@ __author__ = 'Stefan Hechenberger <stefan@nortd.com>'
 import re
 import math
 import logging
+import base64
+import io
 
 from .utilities import matrixMult, parseFloats
 
 from .svg_attribute_reader import SVGAttributeReader
 from .svg_path_reader import SVGPathReader
+
+from PIL import Image
 
 log = logging.getLogger("svg_reader")
 
@@ -183,9 +187,17 @@ class SVGTagReader:
 
 
     def image(self, node):
-        # not supported
         # has transform and style attributes
-        log.warn("'image' tag is not supported, ignored")     
+        data = node['{http://www.w3.org/1999/xlink}href']
+        x = node.get('x') or 0
+        y = node.get('y') or 0
+        width = node.get('width') or 0
+        height = node.get('height') or 0
+
+        image = Image.open(io.BytesIO(base64.b64decode(data.split('data:image/png;base64,')[1].encode('utf-8'))))
+        image.show()
+        
+        node['raster'] = {x, y, 1.0, image.convert("1").getData()}
 
 
     def defs(self, node):

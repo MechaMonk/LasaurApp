@@ -59,11 +59,14 @@ class SVGReader:
     """SVG parser.
 
     Usage:
-    reader = SVGReader(0.08, [1220,610])
+    reader = SVGReader(0.08, [400,250])
     boundarys = reader.parse(open('filename').read())
     """
 
     def __init__(self, tolerance, target_size):
+        
+        #log.debug("SVGReader created with tolerance: "+tolerance+" and size: "+size)            
+        
         # init helper object for tag reading
         self._tagReader = SVGTagReader(tolerance)
 
@@ -120,6 +123,7 @@ class SVGReader:
         """        
         self.dpi = None
         self.boundarys = {}
+        #self.rasters = {}
 
         # parse xml
         svgRootElement = ET.fromstring(svgstring)
@@ -234,6 +238,9 @@ class SVGReader:
         parse_results = {'boundarys':self.boundarys, 'dpi':self.dpi}
         if self.lasertags:
             parse_results['lasertags'] = self.lasertags
+            
+        #if self.rasters:
+        #    parse_results['rasters'] = self.rasters
 
         return parse_results
 
@@ -247,6 +254,7 @@ class SVGReader:
                 # and inherit from parent
                 node = {
                     'paths': [],
+                    #'raster': [],
                     'xform': [1,0,0,1,0,0],
                     'xformToWorld': parentNode['xformToWorld'],
                     'display': parentNode.get('display'),
@@ -281,6 +289,10 @@ class SVGReader:
                 # 4. any lasertags (cut settings)?
                 if node.has_key('lasertags'):
                     self.lasertags.extend(node['lasertags'])
+                        
+                # 5. Raster Data [(x, y, pitch, data)]
+                #if node.has_key('raster'):
+                #    self.rasters.append(node['raster'])
             
                 # recursive call
                 self.parse_children(child, node)

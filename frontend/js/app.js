@@ -479,7 +479,7 @@ $(document).ready(function(){
     $().uxmessage('notice', gcode.replace(/\n/g, '<br>'));
     send_gcode(gcode, "Resetting ...", false); 
     var delayedresume = setTimeout(function() {
-      var gcode = '~\nG30\n'  // ~ is resume char
+      var gcode = '\n~\nG30\n'  // ~ is resume char
       $().uxmessage('notice', gcode.replace(/\n/g, '<br>'));
       send_gcode(gcode, "Homing cycle ...", false);
     }, 1000);

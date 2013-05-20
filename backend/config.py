@@ -1,6 +1,6 @@
 
 
 config = {
-	target_size: [1220,610],
-	tolerance: 0.08
+	target_size: [325,215],
+	tolerance: 0.0254
 }
