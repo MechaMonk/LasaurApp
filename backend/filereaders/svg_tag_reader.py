@@ -195,7 +195,15 @@ class SVGTagReader:
         width = node.get('width') or 0
         height = node.get('height') or 0
 
-        image = Image.open(io.BytesIO(base64.b64decode(data.split('data:image/png;base64,')[1].encode('utf-8'))))
+
+        embedded = data.split('data:image/png;base64,')
+        linked = data.split('file://')
+        
+        if (len(linked) > 1):
+            image = Image.open(linked[1])
+        if (len(embedded) > 1):
+            image = Image.open(io.BytesIO(base64.b64decode(embedded[1].encode('utf-8'))))
+
         converted_image = image.convert("1")
         #converted_image.show()
 
