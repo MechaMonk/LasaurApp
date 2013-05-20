@@ -63,6 +63,7 @@ GcodeReader = {
   	
   	this.moves = [];
     this.rasters = [];
+    var raster_width_calculated = 0;
   	this.bboxClear();
   	var lastG0 = undefined;
   	var lines = gcode.split("\n");
@@ -71,7 +72,7 @@ GcodeReader = {
   	var currentI = 0.0;
     var currentJ = 0.0;
   	var currentF = 0.0;
-    var first_time = 1;
+
   	for (var i=0; i<lines.length; i++) {
   		var line = lines[i];
   		line.replace(' ', '');  // throw out any spaces
@@ -103,20 +104,35 @@ GcodeReader = {
                 
                 if ('P' in args) {
                     // This is usually the first raster command
-                    this.rasters.push( {'type':gnum, 'X':currentX, 'Y':currentY, 'P':args.P*scale, 'height':-1, 'total':0, 'overscan':0 } );
+                    // There is always a G8 N0 before the first raster, so start counting raster height at -1.
+                    this.rasters.push( {'type':gnum, 'X':currentX, 'Y':currentY, 'P':args.P*scale, 'height':-1, 'width':0.0, 'overscan':0.0, 'data':[] } );
                     currentRaster = this.rasters.length - 1;
+                    raster_width_calculated = 0;
                 }
 
                 if ('X' in args) {
-                    this.rasters[this.currentRaster].overscan = args.X*scale;  // Raster Overscan
+                    // Raster Overscan
+                    this.rasters[this.currentRaster].overscan = args.X * scale;
                 }
 
                 if ('N' in args) {
-                    this.rasters[this.currentRaster].height += 1;  // End of raster line
+                    // End of raster line
+                    this.rasters[this.currentRaster].height += 1;  
+                    
+                    // Take some measurements after the first raster.
+                    if (this.rasters[this.currentRaster].height == 1) {
+                        // Store the raster width.
+                        this.rasters[this.currentRaster].width = this.rasters[this.currentRaster].data.length;
+                        raster_width_calculated = 1;
+                        
+                        // Extend the bounding box.
+                        this.bboxExpand(currentX - this.rasters[this.currentRaster].overscan, currentY);
+                        this.bboxExpand(currentX + this.rasters[this.currentRaster].width * this.rasters[this.currentRaster].P + this.rasters[this.currentRaster].overscan, currentY);
+                    }
                 }
                 
   				if ('D' in args) {
-                    this.rasters[this.currentRaster].total += args.D.length;
+                    this.rasters[this.currentRaster].data += args.D;
                 }
             }
   		}
@@ -221,9 +237,32 @@ GcodeReader = {
 
   	for (var i=0; i<this.rasters.length; i++) {
         var raster = this.rasters[i];
-  		canvas.fill(color);
-  		canvas.stroke(color);
-  		canvas.rect(raster.X, raster.Y, (raster.total / raster.height) * raster.P, raster.height * raster.P);
+        var dot = raster.P;
+        var overscan = raster.overscan;
+        var rx = raster.X;
+        var ry = raster.Y;
+        var rw = raster.width;
+        var rh = raster.height;
+        
+
+  		canvas.fill('#eeeeee');
+        canvas.stroke('#eeeeee');
+  		canvas.rect(rx - overscan, ry, rw*dot + 2*overscan, rh*dot);
+
+  		canvas.fill('#cccccc');
+        canvas.stroke('#cccccc');
+  		canvas.rect(rx, ry, rw*dot, rh*dot);
+
+        canvas.stroke(color);
+        
+        for (var y=0; y<rh; y++) {
+            for (var x=0; x<rw; x++) {
+                offset = ((y * rw) + x);
+                if (raster.data[offset] == '0') {
+                    canvas.line(rx + x * dot, ry + y * dot, rx + x * dot + 1, ry + y * dot);
+                }
+            }
+        }
   	}
 
   },

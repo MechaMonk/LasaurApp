@@ -42,17 +42,18 @@ log.setLevel(logging.INFO)
 #   * non-pixel units (cm, mm, in, pt, pc)
 #   * 'style' attribute and presentation attributes
 #   * curves, arcs, cirles, ellipses tesellated according to tolerance
+#   * raster images
 #  
 # Intentinally not Supported:
 #   * markers
 #   * masking
 #   * em, ex, % units
 #   * text (needs to be converted to paths)
-#   * raster images
 #   * style sheets
 #
 # ToDo:
 #   * check for out of bounds geometry
+#   * Add support for rastered text and fills.
 
 
 class SVGReader:
