@@ -98,6 +98,8 @@ class SVGReader:
         # # tags that should not be further traversed
         # self.ignore_tags = {'defs':None, 'pattern':None, 'clipPath':None}
 
+        self.rasters = []
+
 
         
     def parse(self, svgstring, force_dpi=None):
@@ -123,7 +125,6 @@ class SVGReader:
         """        
         self.dpi = None
         self.boundarys = {}
-        #self.rasters = {}
 
         # parse xml
         svgRootElement = ET.fromstring(svgstring)
@@ -239,8 +240,8 @@ class SVGReader:
         if self.lasertags:
             parse_results['lasertags'] = self.lasertags
             
-        #if self.rasters:
-        #    parse_results['rasters'] = self.rasters
+        if self.rasters:
+            parse_results['rasters'] = self.rasters
 
         return parse_results
 
@@ -254,7 +255,7 @@ class SVGReader:
                 # and inherit from parent
                 node = {
                     'paths': [],
-                    #'raster': [],
+                    'rasters': [],
                     'xform': [1,0,0,1,0,0],
                     'xformToWorld': parentNode['xformToWorld'],
                     'display': parentNode.get('display'),
@@ -291,14 +292,21 @@ class SVGReader:
                     self.lasertags.extend(node['lasertags'])
                         
                 # 5. Raster Data [(x, y, pitch, data)]
-                #if node.has_key('raster'):
-                #    self.rasters.append(node['raster'])
+                for raster in node['rasters']:
+                    if raster:
+                        # Get the image location and dimensions
+                        corner = raster[0]
+                        matrixApply(node['xformToWorld'], corner)
+                        vertexScale(corner, self.px2mm)
+
+                        size = raster[1]
+                        matrixApply(node['xformToWorld'], size)
+                        vertexScale(size, self.px2mm)
+                        
+                        self.rasters.append(raster)
             
                 # recursive call
                 self.parse_children(child, node)
-
-
-
 
 
 # if __name__ == "__main__":

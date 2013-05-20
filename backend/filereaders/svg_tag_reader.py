@@ -187,6 +187,7 @@ class SVGTagReader:
 
 
     def image(self, node):
+        raster = []
         # has transform and style attributes
         data = node['{http://www.w3.org/1999/xlink}href']
         x = node.get('x') or 0
@@ -195,11 +196,16 @@ class SVGTagReader:
         height = node.get('height') or 0
 
         image = Image.open(io.BytesIO(base64.b64decode(data.split('data:image/png;base64,')[1].encode('utf-8'))))
-        image.show()
+        converted_image = image.convert("1")
+        #converted_image.show()
+
+        raster_data = converted_image.getdata()
+        raster.append([x, y])
+        raster.append([width, height])
+        raster.append([converted_image.size[0], converted_image.size[1]])
+        raster.append(list(raster_data))
+        node['rasters'].append(raster)
         
-        node['raster'] = {x, y, 1.0, image.convert("1").getData()}
-
-
     def defs(self, node):
         # not supported
         # http://www.w3.org/TR/SVG11/struct.html#Head

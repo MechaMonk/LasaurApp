@@ -93,13 +93,21 @@ $(document).ready(function(){
   }
       
   function handleParsedGeometry(data) {
-    // data is a dict with the following keys [boundarys, dpi, lasertags]
+    // data is a dict with the following keys [boundarys, dpi, lasertags, rasters]
+    var rasters = data.rasters;
     var boundarys = data.boundarys;
-    if (boundarys) {
+    
+    if (boundarys || rasters) {
       raw_gcode_by_color = {};
       for (var color in boundarys) {
         raw_gcode_by_color[color] = GcodeWriter.write(boundarys[color], 1.0, 0.0, 0.0);
       }
+
+      for (var raster in rasters) {
+        color = "#000080"
+        raw_gcode_by_color[color] = GcodeWriter.write_raster(rasters[raster], 1.0);
+      }
+      
       // reset previous color toggles
       $('#canvas_properties .colorbtns').html('');  // reset colors
       $('#passes').html('');  // pass widgets
@@ -240,15 +248,15 @@ $(document).ready(function(){
 
   
   function generatePreview() {
+    var exclude_colors =  {};
+    $('#canvas_properties .colorbtns button').each(function(index) {
+      if (!($(this).hasClass('active'))) {
+        // alert(JSON.stringify($(this).find('div i').text()));
+        exclude_colors[$(this).find('div span').text()] = 1;
+      }
+    });
+    
     if (raw_gcode_by_color) {        
-      var exclude_colors =  {};
-      $('#canvas_properties .colorbtns button').each(function(index) {
-        if (!($(this).hasClass('active'))) {
-          // alert(JSON.stringify($(this).find('div i').text()));
-          exclude_colors[$(this).find('div span').text()] = 1;
-        }
-      });
-      
       icanvas.background('#ffffff');
       // var bbox_list = [];
       var scale = 0.5;
@@ -259,21 +267,7 @@ $(document).ready(function(){
           // bbox_list.push([GcodeReader.bbox[0],GcodeReader.bbox[1],GcodeReader.bbox[2],GcodeReader.bbox[3]]);
         }
       }
-      // // combine all bounding boxes and report on log
-      // var overall_bbox = [0,0,0,0];
-      // for (var bbidx in bbox_list) {
-      //   var bbox = bbox_list[bbidx];
-      //   overall_bbox = bboxExpand(overall_bbox, bbox[0], bbox[1])
-      //   overall_bbox = bboxExpand(overall_bbox, bbox[2], bbox[3])
-      // }
-      // var bbox_width = (overall_bbox[2] - overall_bbox[0]) / scale;
-      // var bbox_height = (overall_bbox[3] - overall_bbox[1]) / scale;
-      // $().uxmessage('notice', "The calculated bounding box is " 
-      //   + bbox_width.toFixed(1) + 'x' + bbox_height.toFixed(1) + 'mm'
-      //   + ' (' + (bbox_width/25.4).toFixed(1) + 'x' + (bbox_height/25.4).toFixed(1) + 'in).');      
-    } else {
-      $().uxmessage('notice', "No data loaded to generate preview.");
-    }       
+    }
   }
 
   // function bboxExpand(bbox, x,y) {
