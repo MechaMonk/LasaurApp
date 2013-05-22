@@ -57,7 +57,7 @@ GcodeWriter = {
     return glist.join('');
   },
 
-  write_raster : function(raster, scale) {
+  write_raster : function(raster, scale, overscan, invert) {
     var glist = [];
     var x_off = raster[0][0] * scale;
     var y_off = raster[0][1] * scale;
@@ -68,19 +68,23 @@ GcodeWriter = {
     var data = raster[3];
     var dot_size = width / bmp_width;
     var count = 0;
+    var z_off = 0;
+    
+    if (invert > 0)
+        z_off = -1;
 
     glist.push("G00X"+x_off.toFixed(this.NDIGITS)+"Y"+y_off.toFixed(this.NDIGITS)+"\n");
     glist.push("G8 P"+dot_size.toFixed(this.NDIGITS+2)+"\n");
-    glist.push("G8 X15\n");
+    glist.push("G8 X"+overscan.toFixed(this.NDIGITS)+"Z"+z_off.toFixed(this.NDIGITS)+"\n");
     glist.push("G8 N0\n");
     
     for (var y=0; y<bmp_height; y++) {
       glist.push("G8 D");
       for (var x=0; x<bmp_width; x++) {
         if (data[y*bmp_width + x] == 0) {
-          glist.push("0");
-        } else {
           glist.push("1");
+        } else {
+          glist.push("0");
         }
         count++;
         if (count % 70 == 0) {

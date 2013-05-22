@@ -72,6 +72,7 @@ GcodeReader = {
   	var currentI = 0.0;
     var currentJ = 0.0;
   	var currentF = 0.0;
+    var raster = null;
 
   	for (var i=0; i<lines.length; i++) {
   		var line = lines[i];
@@ -105,34 +106,53 @@ GcodeReader = {
                 if ('P' in args) {
                     // This is usually the first raster command
                     // There is always a G8 N0 before the first raster, so start counting raster height at -1.
-                    this.rasters.push( {'type':gnum, 'X':currentX, 'Y':currentY, 'P':args.P*scale, 'height':-1, 'width':0.0, 'overscan':0.0, 'data':[] } );
+                    this.rasters.push( {'type':gnum, 'X':currentX, 'Y':currentY, 'P':args.P*scale, 
+                                        'height':-1, 'width':0.0, 'x_off':0.0, 'y_off':0.0, 'z_off':0.0, 'data':[] } );
                     currentRaster = this.rasters.length - 1;
+                    raster = this.rasters[this.currentRaster];
                     raster_width_calculated = 0;
                 }
 
                 if ('X' in args) {
                     // Raster Overscan
-                    this.rasters[this.currentRaster].overscan = args.X * scale;
+                    raster.x_off = args.X * scale;
+                }
+
+                if ('Y' in args) {
+                    // Raster Overscan
+                    raster.y_off = args.Y * scale;
+                }
+
+                if ('Z' in args) {
+                    // Raster Overscan
+                    raster.z_off = args.Z * scale;
                 }
 
                 if ('N' in args) {
                     // End of raster line
-                    this.rasters[this.currentRaster].height += 1;  
+                    raster.height += 1;  
                     
                     // Take some measurements after the first raster.
-                    if (this.rasters[this.currentRaster].height == 1) {
+                    if (raster.height == 1) {
                         // Store the raster width.
-                        this.rasters[this.currentRaster].width = this.rasters[this.currentRaster].data.length;
+                        raster.width = raster.data.length;
                         raster_width_calculated = 1;
-                        
-                        // Extend the bounding box.
-                        this.bboxExpand(currentX - this.rasters[this.currentRaster].overscan, currentY);
-                        this.bboxExpand(currentX + this.rasters[this.currentRaster].width * this.rasters[this.currentRaster].P + this.rasters[this.currentRaster].overscan, currentY);
+                    }
+                    
+                    // Extend the bounding box.
+                    if (raster.x_off != 0) {
+                        this.bboxExpand(currentX, currentY);
+                        this.bboxExpand(currentX + raster.width * raster.P, currentY + raster.height * raster.P);
+                    }
+
+                    if (raster.y_off != 0) {
+                        this.bboxExpand(currentX, currentY);
+                        this.bboxExpand(currentX + raster.height * raster.P, currentY + raster.width * raster.P);
                     }
                 }
                 
   				if ('D' in args) {
-                    this.rasters[this.currentRaster].data += args.D;
+                    raster.data += args.D;
                 }
             }
   		}
@@ -243,23 +263,88 @@ GcodeReader = {
         var ry = raster.Y;
         var rw = raster.width;
         var rh = raster.height;
+        var burn_val = '1';
         
+        if (raster.z_off < 0)
+            burn_val = '0'
+
+        var x_max;
+        var y_max;
+        
+        if (raster.y_off != 0 && raster.x_off != 0) {
+            x_max = Math.max(rh, rw);
+            y_max = Math.max(rh, rw);
+        } else if (raster.y_off != 0) {
+            x_max = rh;
+            y_max = rw;
+        }
+        else if (raster.x_off != 0) {
+            x_max = rw;
+            y_max = rh;
+        }
 
   		canvas.fill('#eeeeee');
         canvas.stroke('#eeeeee');
-  		canvas.rect(rx - overscan, ry, rw*dot + 2*overscan, rh*dot);
+  		canvas.rect(rx - Math.abs(raster.x_off), ry - Math.abs(raster.y_off), 
+                    x_max*dot + 2*Math.abs(raster.x_off), 
+                    y_max*dot + 2*Math.abs(raster.y_off));
 
   		canvas.fill('#cccccc');
         canvas.stroke('#cccccc');
-  		canvas.rect(rx, ry, rw*dot, rh*dot);
+  		canvas.rect(rx, ry, x_max*dot, y_max*dot);
 
         canvas.stroke(color);
+        
+        if (raster.y_off == 0 && raster.x_off == 0) {
+            alert("You need to specify an X or Y Offset");
+            break;
+        }
         
         for (var y=0; y<rh; y++) {
             for (var x=0; x<rw; x++) {
                 offset = ((y * rw) + x);
-                if (raster.data[offset] == '0') {
-                    canvas.line(rx + x * dot, ry + y * dot, rx + x * dot + 1, ry + y * dot);
+                if (raster.data[offset] == burn_val) {
+                    var x_off1 = 0;
+                    var y_off1 = 0;
+                    var x_off2 = 0;
+                    var y_off2 = 0;
+                    
+                    if (raster.x_off == 0) {
+                        if (raster.y_off > 0) {
+                            x_off1 = rh * dot - y * dot;
+                            y_off1 = x * dot;
+                            y_off2 = 1;
+                        } else {
+                            x_off1 = rh * dot - y * dot;
+                            y_off1 = rw * dot - x * dot;
+                            y_off2 = -1;
+                        }
+                    } else if (raster.y_off == 0) {
+                        if (raster.x_off > 0) {
+                            x_off1 = x * dot;
+                            y_off1 = y * dot;
+                            x_off2 = 1;
+                        } else {
+                            x_off1 = rw * dot - x * dot;
+                            y_off1 = y * dot;
+                            x_off2 = -1;
+                        }
+                    } else {
+                        if (raster.x_off > 0) {
+                            x_off1 = x * dot - y * dot;
+                            x_off2 = 1;
+                        } else {
+                            x_off1 = (rw * dot - x * dot) - y * dot;
+                            x_off2 = -1;
+                        }
+                        if (raster.y_off > 0) {
+                            y_off1 = x * dot;
+                        } else {
+                            y_off1 = rw * dot - x * dot;
+                        }
+                    }
+                    
+                    canvas.line(rx + x_off1, ry + y_off1, rx + x_off1 + x_off2, ry + y_off1 + y_off2);
                 }
             }
         }

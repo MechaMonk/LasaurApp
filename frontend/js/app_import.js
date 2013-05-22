@@ -96,6 +96,7 @@ $(document).ready(function(){
     // data is a dict with the following keys [boundarys, dpi, lasertags, rasters]
     var rasters = data.rasters;
     var boundarys = data.boundarys;
+    //var invert = confirm("Do you wish to invert the raster output?\nNormal: 0 = Burn, 1 = Skip.");
     
     if (boundarys || rasters) {
       raw_gcode_by_color = {};
@@ -105,7 +106,7 @@ $(document).ready(function(){
 
       for (var raster in rasters) {
         color = "#000080"
-        raw_gcode_by_color[color] = GcodeWriter.write_raster(rasters[raster], 1.0);
+        raw_gcode_by_color[color] = GcodeWriter.write_raster(rasters[raster], 1.0, 15.0, 0);
       }
       
       // reset previous color toggles
