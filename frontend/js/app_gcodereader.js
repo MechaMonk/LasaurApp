@@ -147,7 +147,7 @@ GcodeReader = {
 
                     if (raster.y_off != 0) {
                         this.bboxExpand(currentX, currentY);
-                        this.bboxExpand(currentX + raster.height * raster.P, currentY + raster.width * raster.P);
+                        this.bboxExpand(currentX - raster.height * raster.P, currentY + raster.width * raster.P);
                     }
                 }
                 
@@ -268,19 +268,16 @@ GcodeReader = {
         if (raster.z_off < 0)
             burn_val = '0'
 
-        var x_max;
-        var y_max;
+        var x_max = 0;
+        var y_max = 0;
         
-        if (raster.y_off != 0 && raster.x_off != 0) {
-            x_max = Math.max(rh, rw);
-            y_max = Math.max(rh, rw);
-        } else if (raster.y_off != 0) {
-            x_max = rh;
-            y_max = rw;
-        }
-        else if (raster.x_off != 0) {
+        if (raster.x_off != 0) {
             x_max = rw;
             y_max = rh;
+        } else if (raster.y_off != 0) {
+            rx -= rh*dot;
+            x_max = rh;
+            y_max = rw;
         }
 
   		canvas.fill('#eeeeee');
@@ -298,7 +295,11 @@ GcodeReader = {
         if (raster.y_off == 0 && raster.x_off == 0) {
             alert("You need to specify an X or Y Offset");
             break;
+        } else if (raster.y_off != 0 && raster.x_off != 0) {
+            alert("You can only specify an X or a Y Offset");
+            break;
         }
+
         
         for (var y=0; y<rh; y++) {
             for (var x=0; x<rw; x++) {
