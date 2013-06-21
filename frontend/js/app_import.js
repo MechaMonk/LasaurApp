@@ -223,6 +223,10 @@ $(document).ready(function(){
                       '<input type="text" class="feedrate" value="2000" title="feedrate 1-8000mm/min" style="width:32px" data-delay="500">' +
                     '</div>' +
                     '<div class="input-prepend" style="margin-left:6px">' +
+                      '<span class="add-on" style="margin-right:-5px;">P</span>' +
+                      '<input type="text" class="ppi" value="0" title="PPI  0-4000 p/in" style="width:32px" data-delay="500">' +
+                    '</div>' +
+                    '<div class="input-prepend" style="margin-left:6px">' +
                       '<span class="add-on" style="margin-right:-5px;">%</span>' +
                       '<input class="intensity" type="textfield" value="100" title="intensity 0-100%" style="width:26px;" data-delay="500">' +
                     '</div>' +
@@ -312,10 +316,13 @@ $(document).ready(function(){
     
   $('#import_feedrate_1').tooltip();
   $('#import_intensity_1').tooltip();
+  $('#import_ppi_1').tooltip();
   $('#import_feedrate_2').tooltip();
   $('#import_intensity_2').tooltip();
+  $('#import_ppi_2').tooltip();
   $('#import_feedrate_3').tooltip();
   $('#import_intensity_3').tooltip();
+  $('#import_ppi_3').tooltip();
   
   // setting up add to queue button
   $("#import_to_queue").click(function(e) {   
@@ -323,6 +330,7 @@ $(document).ready(function(){
     var gcodeparts = ["G21\nG90\nM80\n"];
     var feedrate;
     var intensity;
+    var ppi;
     var colors = {};
     var any_assingments = false;
 
@@ -337,6 +345,8 @@ $(document).ready(function(){
         any_assingments = true;
         feedrate = mapConstrainFeedrate($(this).find('.feedrate').val());
         intensity = mapConstrainIntesity($(this).find('.intensity').val());
+        ppi = $(this).find('.ppi').val();
+        gcodeparts.push("M3 S"+ppi+"\n");
         gcodeparts.push("S"+intensity+"\nG1 F"+feedrate+"\nG0 F"+app_settings.max_seek_speed+"\n");
         for (var color in raw_gcode_by_color) {
           if(color in colors) {
