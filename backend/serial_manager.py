@@ -18,7 +18,7 @@ class SerialManagerClass:
 
         # TX_CHUNK_SIZE - this is the number of bytes to be 
         # written to the device in one go. It needs to match the device.
-        self.TX_CHUNK_SIZE = 64
+        self.TX_CHUNK_SIZE = 512
         self.RX_CHUNK_SIZE = 256
         self.nRequested = 0
         
@@ -275,7 +275,7 @@ class SerialManagerClass:
                             sys.stdout.flush()
                         self.tx_buffer = self.tx_buffer[actuallySent:]
                     else:
-                        if (time.time()-self.last_request_ready) > 0.5:
+                        if (time.time()-self.last_request_ready) > 0.1:
                             # ask to send a ready byte
                             # only ask for this when sending is on hold
                             # only ask once (and after a big time out)
