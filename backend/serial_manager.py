@@ -105,9 +105,13 @@ class SerialManagerClass:
             for i in range(24):
                 try:
                     s = serial.Serial(port=i, baudrate=baudrate, timeout=2.0)
+                    s.write("?\n")
                     lasaur_hello = s.read(32)
-                    if lasaur_hello.find(self.LASAURGRBL_FIRST_STRING) > -1:
-                        return s.portstr
+                    if lasaur_hello.find("\n") > -1:
+                        if lasaur_hello.find("X") > -1:
+                            if lasaur_hello.find("Y") > -1:
+                                if lasaur_hello.find("V") > -1:
+                                    return s.portstr
                     s.close()
                 except serial.SerialException:
                     pass      
@@ -171,10 +175,10 @@ class SerialManagerClass:
     
             if gcode[0] == '%':
                 return
-            elif gcode[0] == '!':
+            elif gcode[0] == '!' or gcode[0] == '~':
                 self.cancel_queue()
                 self.reset_status()
-                self.tx_buffer = '!\n'
+                self.tx_buffer = gcode[0]+'\n'
                 self.job_size = 2
                 self.job_active = True
             else:
