@@ -4,11 +4,15 @@ __author__ = 'Stefan Hechenberger <stefan@nortd.com>'
 import re
 import math
 import logging
+import base64
+import io
 
 from .utilities import matrixMult, parseFloats
 
 from .svg_attribute_reader import SVGAttributeReader
 from .svg_path_reader import SVGPathReader
+
+from PIL import Image
 
 log = logging.getLogger("svg_reader")
 
@@ -185,11 +189,36 @@ class SVGTagReader:
 
 
     def image(self, node):
-        # not supported
+        raster = []
         # has transform and style attributes
-        log.warn("'image' tag is not supported, ignored")     
+        data = node['{http://www.w3.org/1999/xlink}href']
+        x = node.get('x') or 0
+        y = node.get('y') or 0
+        width = node.get('width') or 0
+        height = node.get('height') or 0
 
 
+        embedded = data.split('data:image/png;base64,')
+        linked = data.split('file://')
+        
+        if (len(linked) > 1):
+            image = Image.open(linked[1])
+        if (len(embedded) > 1):
+            image = Image.open(io.BytesIO(base64.b64decode(embedded[1].encode('utf-8'))))
+            
+        kerf_width = 0.3
+        scaledw = width / kerf_width
+        scaledh = height / kerf_width
+        converted_image = image.convert("1").resize((int(scaledw),int(scaledh)))
+        converted_image.show()
+
+        raster_data = converted_image.getdata()
+        raster.append([x, y])
+        raster.append([width, height])
+        raster.append([converted_image.size[0], converted_image.size[1]])
+        raster.append(list(raster_data))
+        node['rasters'].append(raster)
+        
     def defs(self, node):
         # not supported
         # http://www.w3.org/TR/SVG11/struct.html#Head
