@@ -233,6 +233,12 @@ function addPasses(num) {
                       app_settings.default_intensity+
                       '" title="intensity 0-100%" style="width:26px;" data-delay="500">' +
                   '</div>' +
+                  '<div class="input-prepend" style="margin-left:6px">' +
+                    '<span class="add-on" style="margin-right:-5px;">%</span>' +
+                    '<input class="ppi" type="textfield" value="'+
+                      app_settings.default_ppi+
+                      '" title="ppi 0-4000" style="width:26px;" data-delay="500">' +
+                  '</div>' +
                   '<span class="colorbtns" style="margin-left:6px">'+buttons+'</span>' +
                 '</div>' +
               '</div>';
@@ -273,7 +279,8 @@ function readPassesWidget() {
     if (colors.length > 0) { 
       var feedrate = $(this).find('.feedrate').val();
       var intensity = $(this).find('.intensity').val();
-      DataHandler.addPass({'colors':colors, 'feedrate':feedrate, 'intensity':intensity});
+      var ppi = $(this).find('.ppi').val();
+      DataHandler.addPass({'colors':colors, 'feedrate':feedrate, 'intensity':intensity, 'ppi':ppi});
     }
   });
   return DataHandler.hasPasses();
@@ -297,6 +304,8 @@ function writePassesWidget() {
         $('#passes > div:nth-child('+num+') .feedrate').val(pass['feedrate']);
         // intensity
         $('#passes > div:nth-child('+num+') .intensity').val(pass['intensity']);
+        // ppi
+        $('#passes > div:nth-child('+num+') .ppi').val(pass['ppi']);
         // colors
         var colors = pass['colors'];
         for (var ii=0; ii<colors.length; ii++) {

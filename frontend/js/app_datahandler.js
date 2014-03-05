@@ -60,7 +60,7 @@ DataHandler = {
 
   setByJson : function(strdata) {
     // read internal format
-    // {'passes':{'colors':['#000000',..], 'feedrate':450, 'intensity':100},
+    // {'passes':{'colors':['#000000',..], 'feedrate':450, 'intensity':100, 'ppi':0},
     //  'paths_by_color':{'#000000':[[[x,y],[x,y], ..],[], ..], '#ffffff':[..]}
     // }
     this.clear();
@@ -107,7 +107,8 @@ DataHandler = {
       var colors = pass['colors'];
       var feedrate = this.mapConstrainFeedrate(pass['feedrate']);
       var intensity = this.mapConstrainIntesity(pass['intensity']);
-      glist.push("G1F"+feedrate+"\nS"+intensity+"\n");
+      var ppi = this.mapConstrainPpi(pass['ppi']);
+      glist.push("G1F"+feedrate+"\nS"+intensity+"\nM4S"+ppi+"\n");
       for (var c=0; c<colors.length; c++) {
         var color = colors[c];
         var paths = this.paths_by_color[color];
@@ -233,15 +234,15 @@ DataHandler = {
 
   addPass : function(mapping) {
     // this describes in what order colors are written
-    // and also what intensity and feedrate is used
-    // mapping: {'colors':colors, 'feedrate':feedrate, 'intensity':intensity}
+    // and also what ppi, intensity and feedrate is used
+    // mapping: {'colors':colors, 'feedrate':feedrate, 'intensity':intensity, 'ppi':ppi}
     this.passes.push(mapping);
   },
 
   setPassesFromLasertags : function(lasertags) {
     // lasertags come in this format
-    // (pass_num, feedrate, units, intensity, units, color1, color2, ..., color6)
-    // [(12, 2550, '', 100, '%', ':#fff000', ':#ababab', ':#ccc999', '', '', ''), ...]
+    // (pass_num, feedrate, units, intensity, units, ppi, units, color1, color2, ..., color6)
+    // [(12, 2550, '', 100, '%', 0, 'p/in', ':#fff000', ':#ababab', ':#ccc999', '', '', ''), ...]
     this.passes = [];
     for (var i=0; i<lasertags.length; i++) {
       var vals = lasertags[i];
@@ -249,12 +250,13 @@ DataHandler = {
         var pass = vals[0];
         var feedrate = vals[1];
         var intensity = vals[3];
+        var ppi = vals[5];
         if (typeof(pass) === 'number' && pass > 0) {
           //make sure to have enough pass widgets
           var passes_to_create = pass - this.passes.length
           if (passes_to_create >= 1) {
             for (var k=0; k<passes_to_create; k++) {
-              this.passes.push({'colors':[], 'feedrate':1200, 'intensity':10})
+              this.passes.push({'colors':[], 'feedrate':1200, 'intensity':10, 'ppi':0})
             }
           }
           pass = pass-1;  // convert to zero-indexed
@@ -266,8 +268,12 @@ DataHandler = {
           if (intensity != '' && typeof(intensity) === 'number') {
             this.passes[pass]['intensity'] = intensity;
           }
+          // intensity
+          if (ppi != '' && typeof(ppi) === 'number') {
+            this.passes[pass]['ppi'] = ppi;
+          }
           // colors
-          for (var ii=5; ii<vals.length; ii++) {
+          for (var ii=7; ii<vals.length; ii++) {
             var col = vals[ii];
             if (col.slice(0,1) == '#') {
               this.passes[pass]['colors'].push(col);
@@ -490,6 +496,18 @@ DataHandler = {
     }
     //map to 255 for now until we change the backend
     return Math.round(intens * 2.55).toString();
+  },
+
+  mapConstrainPpi : function(ppi) {
+    ppi = parseInt(ppi);
+    if (ppi < 0) {
+      ppi = 0;
+      $().uxmessage('warning', "PPI constrained to 0");
+    } else if (ppi > 4000) {
+      intens = 4000;
+      $().uxmessage('warning', "PPI constrained to 4000");
+    }
+    return ppi.toString();
   },
 
 }

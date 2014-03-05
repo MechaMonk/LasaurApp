@@ -90,7 +90,7 @@ class SVGReader:
         # lasersaur cut setting from SVG file
         # list of triplets ... [(pass#, key, value), ...]
         # pass# designates the pass this lasertag controls
-        # key is the kind of setting (one of: intensity, feedrate, color)
+        # key is the kind of setting (one of: intensity, feedrate, ppi, color)
         # value is the actual value to use
         self.lasertags = []
         

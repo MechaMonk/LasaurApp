@@ -235,12 +235,15 @@ class SVGTagReader:
             # intensity
             if vals[3]:
                 vals[3] = int(vals[3])
+            # ppi
+            if vals[5]:
+                vals[5] = int(vals[5])
             # colors, strip leading column
-            for ii in range(5,11):
+            for ii in range(7,13):
                 vals[ii] = vals[ii][1:]
             matches[i] = vals
         # store in the following format
-        # [(12, 2550, '', 100, '%', '#fff000', '#ababab', '#ccc999', '', '', '')]
+        # [(12, 2550, '', 100, '%', 0, 'p/in', '#fff000', '#ababab', '#ccc999', '', '', '')]
         node['lasertags'] = matches
 
 
