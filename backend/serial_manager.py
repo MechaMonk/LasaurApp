@@ -18,7 +18,7 @@ class SerialManagerClass:
 
         # TX_CHUNK_SIZE - this is the number of bytes to be 
         # written to the device in one go. It needs to match the device.
-        self.TX_CHUNK_SIZE = 64
+        self.TX_CHUNK_SIZE = 512
         self.RX_CHUNK_SIZE = 256
         self.nRequested = 0
         

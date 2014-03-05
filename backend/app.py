@@ -21,7 +21,7 @@ HARDWARE = 'x86'  # also: 'beaglebone', 'raspberrypi'
 CONFIG_FILE = "lasaurapp.conf"
 COOKIE_KEY = 'secret_key_jkn23489hsdf'
 FIRMWARE = "LasaurGrbl.hex"
-TOLERANCE = 0.08
+TOLERANCE = 0.00635
 
 
 if os.name == 'nt': #sys.platform == 'win32': 
