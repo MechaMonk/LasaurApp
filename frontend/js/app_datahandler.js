@@ -449,12 +449,12 @@ DataHandler = {
       if (rasters) {
 				for (var k=0; k<rasters.length; k++) {
 					var raster = rasters[k];
-					var x = path[0][0];
-					var y = path[0][1];
-					var width = path[1][0];
-					var height = path[1][1];
+					var x = raster[0][0];
+					var y = raster[0][1];
+					var width = raster[1][0];
+					var height = raster[1][1];
 					this.bboxExpand(bbox_color, x, y);
-					//this.bboxExpand(bbox_color, x+width, y+height);
+					this.bboxExpand(bbox_color, x + width, y + height);
 				}
       }
       stats_by_color[color] = {

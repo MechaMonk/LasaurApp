@@ -210,7 +210,7 @@ class SVGTagReader:
         scaledw = width / kerf_width
         scaledh = height / kerf_width
         converted_image = image.convert("1").resize((int(scaledw),int(scaledh)))
-        converted_image.show()
+        #converted_image.show()
 
         raster_data = converted_image.getdata()
         raster.append([x, y])
