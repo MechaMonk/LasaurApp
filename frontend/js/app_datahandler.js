@@ -33,7 +33,10 @@ DataHandler = {
     this.clear();
     for (var color in paths_by_color) {
       var paths_src = paths_by_color[color];
-      this.paths_by_color[color] = [];
+      if (!this.rasters_by_color[color])
+        this.rasters_by_color[color] = [];
+      if (!this.paths_by_color[color])
+        this.paths_by_color[color] = [];
       var paths = this.paths_by_color[color];
       for (var i=0; i<paths_src.length; i++) {
         var path = [];
@@ -80,11 +83,12 @@ DataHandler = {
     // {'#000000':[[x, y], [width, height], [pix_w, pix_h], data)], '#ffffff':[..]}
     for (var color in rasters_by_color) {
       var rasters_src = rasters_by_color[color];
-			if (color == 0)
-				color = '#0000ff'
-      this.rasters_by_color[color] = [];
+      if (color == 0)
+        color = '#0000ff'
+      if (!this.rasters_by_color[color])
+        this.rasters_by_color[color] = [];
       if (!this.paths_by_color[color])
-				this.paths_by_color[color] = [];
+        this.paths_by_color[color] = [];
       var rasters = this.rasters_by_color[color];
       rasters.push(rasters_src);
     }
@@ -103,14 +107,14 @@ DataHandler = {
     if (!(exclude_colors === undefined)) {
       paths_by_color = {};
       rasters_by_color = {};
-      for (var color in this.paths_by_color) {
-        if (!(color in exclude_colors)) {
-          paths_by_color[color] = this.paths_by_color[color];
-        }
-      }
       for (var color in this.rasters_by_color) {
         if (!(color in exclude_colors)) {
           rasters_by_color[color] = this.rasters_by_color[color];
+        }
+      }
+      for (var color in this.paths_by_color) {
+        if (!(color in exclude_colors)) {
+          paths_by_color[color] = this.paths_by_color[color];
         }
       }
     }
@@ -136,6 +140,64 @@ DataHandler = {
       glist.push("G1F"+feedrate+"\nS"+intensity+"\nM4S"+ppi+"\n");
       for (var c=0; c<colors.length; c++) {
         var color = colors[c];
+        // Rasters
+        var rasters = this.rasters_by_color[color];
+        for (var k=0; k<rasters.length; k++) {
+          var raster = rasters[k];
+
+          // Raster Data
+          var x1 = raster[0][0];
+          var y1 = raster[0][1];
+          var width = raster[1][0];
+          var height = raster[1][1];
+          var pixwidth = raster[2][0];
+          var pixheight = raster[2][1];
+          var data = raster[3];
+
+          // Raster Variables
+          var dot_pitch;
+          if (ppi == 0)
+            dot_pitch = 0.3
+          else
+            dot_pitch = 1 / (ppi / 25.4);
+
+          // Calculate the offset based on acceleration and feedrate.
+          var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
+          offset *= 1.1;  // Add some margin.
+          if (offset < 5)
+            offset = 5;
+
+          // Setup the raster header
+          glist.push("G00X"+x1.toFixed(this.NDIGITS)+"Y"+y1.toFixed(this.NDIGITS)+"\n");
+          glist.push("G08P"+dot_pitch.toFixed(this.NDIGITS+2)+"\n");
+          glist.push("G08X"+offset.toFixed(this.NDIGITS)+"Z0\n");
+          glist.push("G08N0\n");
+
+          // Calculate pixels per pulse
+          var pppX = pixwidth / (width / dot_pitch);
+          var pppY = pixheight / (height / dot_pitch);
+
+          // Now for the raster data
+          for (var y = 0; y < pixheight; y += pppY) {
+            var line = Math.round(y) * pixwidth;
+            var count = 0;
+            glist.push("G8 D");
+            for (var x = 0; x < pixwidth; x += pppX) {
+              var pixel = line + Math.round(x);
+              if (data[pixel] == 0) {
+                glist.push("1");
+              } else {
+                glist.push("0");
+              }
+              count++;
+              if (count % 70 == 0) {
+                  glist.push("\nG8 D");
+              }
+            }
+            glist.push("\nG8 N0\n");
+          }
+        }
+        // Paths
         var paths = this.paths_by_color[color];
         for (var k=0; k<paths.length; k++) {
           var path = paths[k];
@@ -151,7 +213,7 @@ DataHandler = {
               glist.push("G1X"+x.toFixed(app_settings.num_digits)+
                            "Y"+y.toFixed(app_settings.num_digits)+"\n");
             }
-          }      
+          }
         }
       }
     }
@@ -183,7 +245,7 @@ DataHandler = {
   // rendering //////////////////////////////////
 
 
-  draw : function (canvas, scale, exclude_colors) { 
+  draw : function (canvas, scale, exclude_colors) {
     // draw any path used in passes
     // exclude_colors is optional
     canvas.background('#ffffff');
@@ -197,24 +259,22 @@ DataHandler = {
         if (rasters) {
           for (var k=0; k<rasters.length; k++) {
             var raster = rasters[k];
-						var x1 = raster[0][0]*scale;
-						var y1 = raster[0][1]*scale;
-						var width = raster[1][0]*scale;
-						var height = raster[1][1]*scale;
-						var pixwidth = raster[2][0];
-						var pixheight = raster[2][1];
-						var ppmmX = pixwidth / width;
-						var ppmmY = pixheight / height;
+            var x1 = raster[0][0]*scale;
+            var y1 = raster[0][1]*scale;
+            var width = raster[1][0]*scale;
+            var height = raster[1][1]*scale;
+            var pixwidth = raster[2][0];
+            var pixheight = raster[2][1];
             var data = raster[3];
-						var offset = 20;
 
-            // For rendering, use 1 pixel per mm (coarse) to speed things up.
-						// Calculate the offset based on acceleration and feedrate.
-						// var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
-						
-						canvas.stroke('#aaaaaa');
-						canvas.line(x_prev, y_prev, x1-offset, y);
-						for (var y = y1; y < y1 + height; y++) {
+            // For rendering, use 1 pixel per mm (coarse) and an arbitrary offset to speed things up.
+            var ppmmX = pixwidth / width;
+            var ppmmY = pixheight / height;
+            var offset = 20;
+
+            canvas.stroke('#aaaaaa');
+            canvas.line(x_prev, y_prev, x1-offset, y);
+            for (var y = y1; y < y1 + height; y++) {
               var line = Math.round(ppmmY * (y-y1)) * pixwidth;
               for (var x=x1; x < x1 + width; x++) {
                 var pixel = Math.round(line + (x - x1) * ppmmX);
@@ -227,14 +287,14 @@ DataHandler = {
               canvas.stroke('#aaaaaa');
               canvas.line(x1 + width, y, x1 + width + offset, y);
               canvas.line(x1 - offset, y, x1, y);
-					  }
-					  x_prev = x1 + width + offset;
-					  y_prev = y1 + height;
+            }
+            x_prev = x1 + width + offset;
+            y_prev = y1 + height;
           }
         }
       }
     }
-		// paths
+    // paths
     for (var color in this.paths_by_color) {
       if (exclude_colors === undefined || !(color in exclude_colors)) {
         var paths = this.paths_by_color[color];
@@ -257,11 +317,11 @@ DataHandler = {
             }
           }
         }
-			}
-		}
+      }
+    }
   },
 
-  draw_bboxes : function (canvas, scale) { 
+  draw_bboxes : function (canvas, scale) {
     // draw with bboxes by color
     // only include colors that are in passe
     var stat;
@@ -393,12 +453,12 @@ DataHandler = {
       var color_order = {};
       var color_count = 0;
       // Rasters first
-      for (var color in this.rasters_by_color) {    
+      for (var color in this.rasters_by_color) {
         color_order[color] = color_count;
         color_count++;
       }
       // Then paths
-      for (var color in this.paths_by_color) {    
+      for (var color in this.paths_by_color) {
         color_order[color] = color_count;
         color_count++;
       }
@@ -437,7 +497,7 @@ DataHandler = {
           for (vertex=1; vertex<path.length; vertex++) {
             var x = path[vertex][0];
             var y = path[vertex][1];
-            path_lenths_color += 
+            path_lenths_color +=
               Math.sqrt((x-x_prev)*(x-x_prev)+(y-y_prev)*(y-y_prev));
             this.bboxExpand(bbox_color, x, y);
             x_prev = x;
@@ -454,22 +514,22 @@ DataHandler = {
       this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
       this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
     }
-    
+
     // rasters
     for (var color in this.rasters_by_color) {
       var raster_lengths_color = 0;
       var bbox_color = [Infinity, Infinity, 0, 0];
       var rasters = this.rasters_by_color[color];
       if (rasters) {
-				for (var k=0; k<rasters.length; k++) {
-					var raster = rasters[k];
-					var x = raster[0][0];
-					var y = raster[0][1];
-					var width = raster[1][0];
-					var height = raster[1][1];
-					this.bboxExpand(bbox_color, x, y);
-					this.bboxExpand(bbox_color, x + width, y + height);
-				}
+        for (var k=0; k<rasters.length; k++) {
+          var raster = rasters[k];
+          var x = raster[0][0];
+          var y = raster[0][1];
+          var width = raster[1][0];
+          var height = raster[1][1];
+          this.bboxExpand(bbox_color, x, y);
+          this.bboxExpand(bbox_color, x + width, y + height);
+        }
       }
       stats_by_color[color] = {
         'bbox':bbox_color,
@@ -587,7 +647,7 @@ DataHandler = {
     }
     return rate.toString();
   },
-    
+
   mapConstrainIntesity : function(intens) {
     intens = parseInt(intens);
     if (intens < 0) {

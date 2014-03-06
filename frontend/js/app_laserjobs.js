@@ -234,7 +234,7 @@ function addPasses(num) {
                       '" title="intensity 0-100%" style="width:26px;" data-delay="500">' +
                   '</div>' +
                   '<div class="input-prepend" style="margin-left:6px">' +
-                    '<span class="add-on" style="margin-right:-5px;">%</span>' +
+                    '<span class="add-on" style="margin-right:-5px;">P</span>' +
                     '<input class="ppi" type="textfield" value="'+
                       app_settings.default_ppi+
                       '" title="ppi 0-4000" style="width:26px;" data-delay="500">' +
