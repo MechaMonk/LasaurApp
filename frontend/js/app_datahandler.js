@@ -190,6 +190,50 @@ DataHandler = {
     canvas.noFill();
     var x_prev = 0;
     var y_prev = 0;
+    // rasters
+    for (var color in this.rasters_by_color) {
+      if (exclude_colors === undefined || !(color in exclude_colors)) {
+        var rasters = this.rasters_by_color[color];
+        if (rasters) {
+          for (var k=0; k<rasters.length; k++) {
+            var raster = rasters[k];
+						var x1 = raster[0][0]*scale;
+						var y1 = raster[0][1]*scale;
+						var width = raster[1][0]*scale;
+						var height = raster[1][1]*scale;
+						var pixwidth = raster[2][0];
+						var pixheight = raster[2][1];
+						var ppmmX = pixwidth / width;
+						var ppmmY = pixheight / height;
+            var data = raster[3];
+						var offset = 20;
+
+            // For rendering, use 1 pixel per mm (coarse) to speed things up.
+						// Calculate the offset based on acceleration and feedrate.
+						// var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
+						
+						canvas.stroke('#aaaaaa');
+						canvas.line(x_prev, y_prev, x1-offset, y);
+						for (var y = y1; y < y1 + height; y++) {
+              var line = Math.round(ppmmY * (y-y1)) * pixwidth;
+              for (var x=x1; x < x1 + width; x++) {
+                var pixel = Math.round(line + (x - x1) * ppmmX);
+                if (data[pixel] == 255)
+                  canvas.stroke('#eeeeee');
+                else
+                  canvas.stroke(color);
+                canvas.line(x, y, x+1, y);
+              }
+              canvas.stroke('#aaaaaa');
+              canvas.line(x1 + width, y, x1 + width + offset, y);
+              canvas.line(x1 - offset, y, x1, y);
+					  }
+					  x_prev = x1 + width + offset;
+					  y_prev = y1 + height;
+          }
+        }
+      }
+    }
 		// paths
     for (var color in this.paths_by_color) {
       if (exclude_colors === undefined || !(color in exclude_colors)) {
@@ -215,38 +259,6 @@ DataHandler = {
         }
 			}
 		}
-    // rasters
-    for (var color in this.rasters_by_color) {
-      if (exclude_colors === undefined || !(color in exclude_colors)) {
-        var rasters = this.rasters_by_color[color];
-        if (rasters) {
-          for (var k=0; k<rasters.length; k++) {
-            var raster = rasters[k];
-						var x1 = raster[0][0]*scale;
-						var y1 = raster[0][1]*scale;
-						var width = raster[1][0]*scale;
-						var height = raster[1][1]*scale;
-						var offset = 20;
-
-						// Calculate the offset based on acceleration and feedrate.
-						// var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
-						
-						canvas.stroke('#aaaaaa');
-						canvas.line(x_prev, y_prev, x1-offset, y);
-
-						for (var y=y1; y<y1 + height; y++) {
-							canvas.stroke(color);
-							canvas.line(x1, y, x1 + width, y);
-							canvas.stroke('#aaaaaa');
-							canvas.line(x1 + width, y, x1 + width + offset, y);
-							canvas.line(x1 - offset, y, x1, y);
-					  }
-					  x_prev = x1 + width + offset;
-					  y_prev = y1 + height;
-          }
-        }
-      }
-    }
   },
 
   draw_bboxes : function (canvas, scale) { 
@@ -380,11 +392,13 @@ DataHandler = {
   getColorOrder : function() {
       var color_order = {};
       var color_count = 0;
-      for (var color in this.paths_by_color) {    
+      // Rasters first
+      for (var color in this.rasters_by_color) {    
         color_order[color] = color_count;
         color_count++;
       }
-      for (var color in this.rasters_by_color) {    
+      // Then paths
+      for (var color in this.paths_by_color) {    
         color_order[color] = color_count;
         color_count++;
       }

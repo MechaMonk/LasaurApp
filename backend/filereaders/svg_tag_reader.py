@@ -205,11 +205,17 @@ class SVGTagReader:
             image = Image.open(linked[1])
         if (len(embedded) > 1):
             image = Image.open(io.BytesIO(base64.b64decode(embedded[1].encode('utf-8'))))
-            
-        kerf_width = 0.3
-        scaledw = width / kerf_width
-        scaledh = height / kerf_width
-        converted_image = image.convert("1").resize((int(scaledw),int(scaledh)))
+
+        # Check the image is a sensible size
+        ppmm = image.size[1] / height;
+        if (ppmm < 2):
+            scale = (height * 2) / height
+            image = image.resize((int(width*scale),int(height*scale)))
+        elif (ppmm > 40):
+            scale = (height * 40) / height
+            image = image.resize((int(width*scale),int(height*scale)))
+			
+        converted_image = image.convert("1")
         #converted_image.show()
 
         raster_data = converted_image.getdata()
