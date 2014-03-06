@@ -25,6 +25,8 @@ DataHandler = {
   },
 
 
+
+
   // readers //////////////////////////////////
 
   setByPaths : function(paths_by_color) {
@@ -168,9 +170,9 @@ DataHandler = {
             offset = 5;
 
           // Setup the raster header
-          glist.push("G00X"+x1.toFixed(this.NDIGITS)+"Y"+y1.toFixed(this.NDIGITS)+"\n");
-          glist.push("G08P"+dot_pitch.toFixed(this.NDIGITS+2)+"\n");
-          glist.push("G08X"+offset.toFixed(this.NDIGITS)+"Z0\n");
+          glist.push("G00X"+x1.toFixed(app_settings.num_digits)+"Y"+y1.toFixed(app_settings.num_digits)+"\n");
+          glist.push("G08P"+dot_pitch.toFixed(app_settings.num_digits+2)+"\n");
+          glist.push("G08X"+offset.toFixed(app_settings.num_digits)+"Z0\n");
           glist.push("G08N0\n");
 
           // Calculate pixels per pulse
