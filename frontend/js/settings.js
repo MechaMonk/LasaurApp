@@ -5,6 +5,7 @@ var app_settings = {
   default_feedrate: 1500,
   default_intensity: 30,
   default_ppi: 0,
+  acceleration: 8000000,
   num_digits: 2, 
   max_num_queue_items: 24,
   max_segment_length: 5.0,

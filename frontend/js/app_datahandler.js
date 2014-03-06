@@ -8,21 +8,21 @@
 DataHandler = {
 
   paths_by_color : {},
+  rasters_by_color : {},
   passes : [],
   stats_by_color : {},
 
 
   clear : function() {
     this.paths_by_color = {};
+    this.rasters_by_color = {};
     this.passes = [];
     this.stats_by_color = {};
   },
 
   isEmpty : function() {
-    return (Object.keys(this.paths_by_color).length == 0);
+    return (Object.keys(this.paths_by_color).length == 0 && Object.keys(this.rasters_by_color).length == 0);
   },
-
-
 
 
   // readers //////////////////////////////////
@@ -67,6 +67,7 @@ DataHandler = {
     var data = JSON.parse(strdata);
     this.passes = data['passes'];
     this.paths_by_color = data['paths_by_color'];
+    this.rasters_by_color = data['rasters_by_color'];
     if ('stats_by_color' in data) {
       this.stats_by_color = data['stats_by_color'];
     } else {
@@ -74,6 +75,22 @@ DataHandler = {
     }
   },
 
+  addRasters : function(rasters_by_color) {
+    // read raster
+    // {'#000000':[[x, y], [width, height], [pix_w, pix_h], data)], '#ffffff':[..]}
+    for (var color in rasters_by_color) {
+      var rasters_src = rasters_by_color[color];
+			if (color == 0)
+				color = '#0000ff'
+      this.rasters_by_color[color] = [];
+      if (!this.paths_by_color[color])
+				this.paths_by_color[color] = [];
+      var rasters = this.rasters_by_color[color];
+      rasters.push(rasters_src);
+    }
+    // also calculate stats
+    this.calculateBasicStats();
+  },
 
 
   // writers //////////////////////////////////
@@ -82,16 +99,24 @@ DataHandler = {
     // write internal format
     // exclude_colors is optional
     var paths_by_color = this.paths_by_color;
+    var rasters_by_color = this.rasters_by_color;
     if (!(exclude_colors === undefined)) {
       paths_by_color = {};
+      rasters_by_color = {};
       for (var color in this.paths_by_color) {
         if (!(color in exclude_colors)) {
           paths_by_color[color] = this.paths_by_color[color];
         }
       }
+      for (var color in this.rasters_by_color) {
+        if (!(color in exclude_colors)) {
+          rasters_by_color[color] = this.rasters_by_color[color];
+        }
+      }
     }
     var data = {'passes': this.passes,
-                'paths_by_color': paths_by_color}
+                'paths_by_color': paths_by_color,
+                'rasters_by_color': rasters_by_color}
     return JSON.stringify(data);
   },
 
@@ -165,6 +190,7 @@ DataHandler = {
     canvas.noFill();
     var x_prev = 0;
     var y_prev = 0;
+		// paths
     for (var color in this.paths_by_color) {
       if (exclude_colors === undefined || !(color in exclude_colors)) {
         var paths = this.paths_by_color[color];
@@ -185,6 +211,38 @@ DataHandler = {
               x_prev = x;
               y_prev = y;
             }
+          }
+        }
+			}
+		}
+    // rasters
+    for (var color in this.rasters_by_color) {
+      if (exclude_colors === undefined || !(color in exclude_colors)) {
+        var rasters = this.rasters_by_color[color];
+        if (rasters) {
+          for (var k=0; k<rasters.length; k++) {
+            var raster = rasters[k];
+						var x1 = raster[0][0]*scale;
+						var y1 = raster[0][1]*scale;
+						var width = raster[1][0]*scale;
+						var height = raster[1][1]*scale;
+						var offset = 20;
+
+						// Calculate the offset based on acceleration and feedrate.
+						// var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
+						
+						canvas.stroke('#aaaaaa');
+						canvas.line(x_prev, y_prev, x1-offset, y);
+
+						for (var y=y1; y<y1 + height; y++) {
+							canvas.stroke(color);
+							canvas.line(x1, y, x1 + width, y);
+							canvas.stroke('#aaaaaa');
+							canvas.line(x1 + width, y, x1 + width + offset, y);
+							canvas.line(x1 - offset, y, x1, y);
+					  }
+					  x_prev = x1 + width + offset;
+					  y_prev = y1 + height;
           }
         }
       }
@@ -316,13 +374,17 @@ DataHandler = {
 
   getAllColors : function() {
     // return list of colors
-    return Object.keys(this.paths_by_color);
+    return Object.keys(this.paths_by_color) + Object.keys(this.rasters_by_color);
   },
 
   getColorOrder : function() {
       var color_order = {};
       var color_count = 0;
       for (var color in this.paths_by_color) {    
+        color_order[color] = color_count;
+        color_count++;
+      }
+      for (var color in this.rasters_by_color) {    
         color_order[color] = color_count;
         color_count++;
       }
@@ -345,6 +407,7 @@ DataHandler = {
     var bbox_all = [Infinity, Infinity, 0, 0];
     var stats_by_color = {};
 
+    // paths
     for (var color in this.paths_by_color) {
       var path_lenths_color = 0;
       var bbox_color = [Infinity, Infinity, 0, 0];
@@ -374,6 +437,32 @@ DataHandler = {
       }
       // add to total also
       path_length_all += path_lenths_color;
+      this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
+      this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
+    }
+    
+    // rasters
+    for (var color in this.rasters_by_color) {
+      var raster_lengths_color = 0;
+      var bbox_color = [Infinity, Infinity, 0, 0];
+      var rasters = this.rasters_by_color[color];
+      if (rasters) {
+				for (var k=0; k<rasters.length; k++) {
+					var raster = rasters[k];
+					var x = path[0][0];
+					var y = path[0][1];
+					var width = path[1][0];
+					var height = path[1][1];
+					this.bboxExpand(bbox_color, x, y);
+					//this.bboxExpand(bbox_color, x+width, y+height);
+				}
+      }
+      stats_by_color[color] = {
+        'bbox':bbox_color,
+        'length':raster_lengths_color
+      }
+      // add to total also
+      path_length_all += raster_lengths_color;
       this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
       this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
     }
