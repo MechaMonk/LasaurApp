@@ -1,11 +1,11 @@
 
 var app_settings = {
   work_area_dimensions: [325,215],
-  max_seek_speed: 10000,
+  max_seek_speed: 20000,
   default_feedrate: 1500,
   default_intensity: 30,
   default_ppi: 0,
-  acceleration: 8000000,
+  acceleration: 8000000,	// mm/min/min, used to calculate raster starting ramp
   num_digits: 2, 
   max_num_queue_items: 24,
   max_segment_length: 5.0,
