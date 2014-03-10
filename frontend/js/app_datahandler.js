@@ -183,20 +183,26 @@ DataHandler = {
           for (var y = 0; y < pixheight; y += pppY) {
             var line = Math.round(y) * pixwidth;
             var count = 0;
-            glist.push("G8 D");
+            var empty = 1;
+            var raster = "";
+            raster += "G8 D";
             for (var x = 0; x < pixwidth; x += pppX) {
               var pixel = line + Math.round(x);
               if (data[pixel] == 0) {
-                glist.push("1");
+                raster += "1";
+                empty = 0;
               } else {
-                glist.push("0");
+                raster += "0";
               }
               count++;
               if (count % 70 == 0) {
-                  glist.push("\nG8 D");
+                  raster += "\nG8 D";
               }
             }
-            glist.push("\nG8 N0\n");
+            if (empty == 0) {
+                glist.push(raster + "\n");
+            }
+            glist.push("G8 N0\n");
           }
         }
         // Paths
