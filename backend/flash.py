@@ -24,8 +24,8 @@ def flash_upload(serial_port, resources_dir, firmware_file, hardware='x86'):
             AVRDUDECONFIG = os.path.join(resources_dir, "firmware/tools_osx/avrdude.conf")
         
         elif sys.platform == "win32": # Windows
-            AVRDUDEAPP    = os.path.join(resources_dir, "firmware/tools_win/avrdude")
-            AVRDUDECONFIG = os.path.join(resources_dir, "firmware/tools_win/avrdude.conf")
+            AVRDUDEAPP    = os.path.join(resources_dir, "firmware", "tools_win", "avrdude")
+            AVRDUDECONFIG = os.path.join(resources_dir, "firmware", "tools_win", "avrdude.conf")
         
         elif sys.platform == "linux" or sys.platform == "linux2":  #Linux
             AVRDUDEAPP    = os.path.join(resources_dir, "/usr/bin/avrdude")
@@ -76,6 +76,9 @@ def flash_upload(serial_port, resources_dir, firmware_file, hardware='x86'):
                 fw = file("/sys/class/gpio/export", "w")
                 fw.write("%d" % (71))
                 fw.close()
+                fwb = file("/sys/class/gpio/export", "w")
+                fwb.write("%d" % (73))
+                fwb.close()
             except IOError:
                 # probably already exported
                 pass
@@ -84,15 +87,24 @@ def flash_upload(serial_port, resources_dir, firmware_file, hardware='x86'):
             fw = file("/sys/class/gpio/gpio71/direction", "w")
             fw.write("out")
             fw.close()
+            fwb = file("/sys/class/gpio/gpio73/direction", "w")
+            fwb.write("out")
+            fwb.close()
             # set the gpio pin low -> high
             # echo 1 > /sys/class/gpio/gpio71/value
             fw = file("/sys/class/gpio/gpio71/value", "w")
             fw.write("0")
             fw.flush()
+            fwb = file("/sys/class/gpio/gpio73/value", "w")
+            fwb.write("0")
+            fwb.flush()
             time.sleep(0.5)
             fw.write("1")
             fw.flush()
             fw.close()
+            fwb.write("1")
+            fwb.flush()
+            fwb.close()
             time.sleep(0.1)
         elif hardware == 'raspberrypi':
             print "Flashing from Raspberry Pi ..."
@@ -120,23 +132,36 @@ def flash_upload(serial_port, resources_dir, firmware_file, hardware='x86'):
 
 
 def reset_atmega(hardware=''):
+    print "Resetting Atmega ..."
     if hardware == 'beaglebone':
         try:
             fw = file("/sys/class/gpio/export", "w")
             fw.write("%d" % (71))
             fw.close()
+            fwb = file("/sys/class/gpio/export", "w")
+            fwb.write("%d" % (73))
+            fwb.close()
         except IOError:
             pass
         fw = file("/sys/class/gpio/gpio71/direction", "w")
         fw.write("out")
         fw.close()
+        fwb = file("/sys/class/gpio/gpio73/direction", "w")
+        fwb.write("out")
+        fwb.close()
         fw = file("/sys/class/gpio/gpio71/value", "w")
         fw.write("0")
         fw.flush()
+        fwb = file("/sys/class/gpio/gpio73/value", "w")
+        fwb.write("0")
+        fwb.flush()
         time.sleep(0.2)
         fw.write("1")
         fw.flush()
         fw.close()
+        fwb.write("1")
+        fwb.flush()
+        fwb.close()
     elif hardware == 'raspberrypi':
         import RPi.GPIO as GPIO
         GPIO.setmode(GPIO.BCM)  # use chip pin number

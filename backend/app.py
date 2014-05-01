@@ -1,20 +1,22 @@
 
 import sys, os, time
 import glob, json, argparse, copy
+import tempfile
 import socket, webbrowser
 from wsgiref.simple_server import WSGIRequestHandler, make_server
 from bottle import *
 from serial_manager import SerialManager
 from flash import flash_upload, reset_atmega
-from filereaders import read_svg, read_dxf
+from build import build_firmware
+from filereaders import read_svg, read_dxf, read_ngc
 
 
 APPNAME = "lasaurapp"
-VERSION = "13.02"
+VERSION = "13.06b"
 COMPANY_NAME = "com.nortd.labs"
 SERIAL_PORT = None
-BITSPERSECOND = 115200
-NETWORK_PORT = 5555
+BITSPERSECOND = 57600
+NETWORK_PORT = 4444
 HARDWARE = 'x86'  # also: 'beaglebone', 'raspberrypi'
 CONFIG_FILE = "lasaurapp.conf"
 COOKIE_KEY = 'secret_key_jkn23489hsdf'
@@ -72,7 +74,7 @@ class HackedWSGIRequestHandler(WSGIRequestHandler):
     on the BeagleBone and RaspberryPi. The problem is WSGIRequestHandler
     which does a reverse lookup on every request calling gethostbyaddr.
     For some reason this is super slow when connected to the LAN.
-    (adding the the IP and name of the requester in the /etc/hosts file
+    (adding the IP and name of the requester in the /etc/hosts file
     solves the problem but obviously is not practical)
     """
     def address_string(self):
@@ -127,9 +129,6 @@ def run_with_callback(host, port):
 
         
 
-@route('/hello')
-def hello_handler():
-    return "Hello World!!"
 
 @route('/longtest')
 def longtest_handler():
@@ -191,6 +190,7 @@ def decode_filename(name):
 def static_queue_handler(name): 
     return static_file(name, root=storage_dir(), mimetype='text/plain')
 
+
 @route('/queue/list')
 def library_list_handler():
     # base64.urlsafe_b64encode()
@@ -209,15 +209,15 @@ def library_list_handler():
 @route('/queue/save', method='POST')
 def queue_save_handler():
     ret = '0'
-    if 'gcode_name' in request.forms and 'gcode_program' in request.forms:
-        name = request.forms.get('gcode_name')
-        gcode_program = request.forms.get('gcode_program')
+    if 'job_name' in request.forms and 'job_data' in request.forms:
+        name = request.forms.get('job_name')
+        job_data = request.forms.get('job_data')
         filename = os.path.abspath(os.path.join(storage_dir(), name.strip('/\\')))
         if os.path.exists(filename) or os.path.exists(filename+'.starred'):
             return "file_exists"
         try:
             fp = open(filename, 'w')
-            fp.write(gcode_program)
+            fp.write(job_data)
             print "file saved: " + filename
             ret = '1'
         finally:
@@ -228,7 +228,7 @@ def queue_save_handler():
 
 @route('/queue/rm/:name')
 def queue_rm_handler(name):
-    # delete gcode item, on success return '1'
+    # delete queue item, on success return '1'
     ret = '0'
     filename = os.path.abspath(os.path.join(storage_dir(), name.strip('/\\')))
     if filename.startswith(storage_dir()):
@@ -239,7 +239,30 @@ def queue_rm_handler(name):
                 ret = '1'
             finally:
                 pass
-    return ret   
+    return ret 
+
+@route('/queue/clear')
+def queue_clear_handler():
+    # delete all queue items, on success return '1'
+    ret = '0'
+    files = []
+    cwd_temp = os.getcwd()
+    try:
+        os.chdir(storage_dir())
+        files = filter(os.path.isfile, glob.glob("*"))
+        files.sort(key=lambda x: os.path.getmtime(x))
+    finally:
+        os.chdir(cwd_temp)
+    for filename in files:
+        if not filename.endswith('.starred'):
+            filename = os.path.join(storage_dir(), filename)
+            try:
+                os.remove(filename);
+                print "file deleted: " + filename
+                ret = '1'
+            finally:
+                pass
+    return ret
     
 @route('/queue/star/:name')
 def queue_star_handler(name):
@@ -261,7 +284,8 @@ def queue_unstar_handler(name):
             ret = '1'
     return ret 
 
-    
+
+
 
 @route('/')
 @route('/index.html')
@@ -269,9 +293,25 @@ def queue_unstar_handler(name):
 def default_handler():
     return static_file('app.html', root=os.path.join(resources_dir(), 'frontend') )
 
-@route('/canvas')
-def canvas_handler():
-    return static_file('testCanvas.html', root=os.path.join(resources_dir(), 'frontend'))    
+
+@route('/stash_download', method='POST')
+def stash_download():
+    """Create a download file event from string."""
+    filedata = request.forms.get('filedata')
+    fp = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    filename = fp.name
+    with fp:
+        fp.write(filedata)
+        fp.close()
+    print filedata
+    print "file stashed: " + os.path.basename(filename)
+    return os.path.basename(filename)
+
+@route('/download/:filename/:dlname')
+def download(filename, dlname):
+    print "requesting: " + filename
+    return static_file(filename, root=tempfile.gettempdir(), download=dlname)
+  
 
 @route('/serial/:connect')
 def serial_handler(connect):
@@ -311,24 +351,25 @@ def serial_handler(connect):
 def get_status():
     status = copy.deepcopy(SerialManager.get_hardware_status())
     status['serial_connected'] = SerialManager.is_connected()
+    status['lasaurapp_version'] = VERSION
     return json.dumps(status)
 
 
 @route('/pause/:flag')
 def set_pause(flag):
+    # returns pause status
     if flag == '1':
         if SerialManager.set_pause(True):
             print "pausing ..."
             return '1'
         else:
-            print "warn: nothing to pause"
-            return ''
+            return '0'
     elif flag == '0':
         print "resuming ..."
         if SerialManager.set_pause(False):
             return '1'
         else:
-            return ''
+            return '0'
 
 
 
@@ -373,13 +414,33 @@ def flash_firmware_handler(firmware_file=FIRMWARE):
     else:
         print "ERROR: Failed to flash Arduino."
         ret.append('<h2>Flashing Failed!</h2> Check terminal window for possible errors. ')
-        ret. append('Most likely LasaurApp could not find the right serial port.<br><a href="/">return</a><br><br>')
+        ret.append('Most likely LasaurApp could not find the right serial port.')
+        ret.append('<br><a href="/flash_firmware/'+firmware_file+'">try again</a> or <a href="/">return</a><br><br>')
         if os.name != 'posix':
             ret. append('If you know the COM ports the Arduino is connected to you can specifically select it here:')
             for i in range(1,13):
                 ret. append('<br><a href="/flash_firmware?port=COM%s">COM%s</a>' % (i, i))
         return ''.join(ret)
-    
+
+
+@route('/build_firmware')
+def build_firmware_handler():
+    ret = []
+    buildname = "LasaurGrbl_from_src"
+    firmware_dir = os.path.join(resources_dir(), 'firmware')
+    source_dir = os.path.join(resources_dir(), 'firmware', 'src')
+    return_code = build_firmware(source_dir, firmware_dir, buildname)
+    if return_code != 0:
+        print ret
+        ret.append('<h2>FAIL: build error!</h2>')
+        ret.append('Syntax error maybe? Try builing in the terminal.')
+        ret.append('<br><a href="/">return</a><br><br>')
+    else:
+        print "SUCCESS: firmware built."
+        ret.append('<h2>SUCCESS: new firmware built!</h2>')
+        ret.append('<br><a href="/flash_firmware/'+buildname+'.hex">Flash Now!</a><br><br>')
+    return ''.join(ret)
+
 
 @route('/reset_atmega')
 def reset_atmega_handler():
@@ -387,20 +448,11 @@ def reset_atmega_handler():
     return '1'
 
 
-# @route('/gcode/:gcode_line')
-# def gcode_handler(gcode_line):
-#     if SerialManager.is_connected():    
-#         print gcode_line
-#         SerialManager.queue_gcode_line(gcode_line)
-#         return "Queued for sending."
-#     else:
-#         return ""
-
 @route('/gcode', method='POST')
-def gcode_submit_handler():
-    gcode_program = request.forms.get('gcode_program')
-    if gcode_program and SerialManager.is_connected():
-        lines = gcode_program.split('\n')
+def job_submit_handler():
+    job_data = request.forms.get('job_data')
+    if job_data and SerialManager.is_connected():
+        lines = job_data.split('\n')
         print "Adding to queue %s lines" % len(lines)
         for line in lines:
             SerialManager.queue_gcode_line(line)
@@ -413,11 +465,19 @@ def queue_pct_done_handler():
     return SerialManager.get_queue_percentage_done()
 
 
-@route('/svg_reader', method='POST')
-def svg_upload():
+@route('/file_reader', method='POST')
+def file_reader():
     """Parse SVG string."""
     filename = request.forms.get('filename')
     filedata = request.forms.get('filedata')
+    dimensions = request.forms.get('dimensions')
+    try:
+        dimensions = json.loads(dimensions)
+    except TypeError:
+        dimensions = None
+    # print "dims", dimensions[0], ":", dimensions[1]
+
+
     dpi_forced = None
     try:
         dpi_forced = float(request.forms.get('dpi'))
@@ -434,38 +494,18 @@ def svg_upload():
         print "You uploaded %s (%d bytes)." % (filename, len(filedata))
         if filename[-4:] in ['.dxf', '.DXF']: 
             res = read_dxf(filedata, TOLERANCE, optimize)
+        elif filename[-4:] in ['.svg', '.SVG']: 
+            res = read_svg(filedata, dimensions, TOLERANCE, dpi_forced, optimize)
+        elif filename[-4:] in ['.ngc', '.NGC']:
+            res = read_ngc(filedata, TOLERANCE, optimize)
         else:
-            res = read_svg(filedata, [400,250], TOLERANCE, dpi_forced, optimize)
+            print "error: unsupported file format"
+
         # print boundarys
         jsondata = json.dumps(res)
         # print "returning %d items as %d bytes." % (len(res['boundarys']), len(jsondata))
         return jsondata
     return "You missed a field."
-
-
-# @route('/svg_reader', method='POST')
-# def svg_upload():
-#     """Parse SVG string."""
-#     data = request.files.get('data')
-#     if data.file:
-#         raw = data.file.read() # This is dangerous for big files
-#         filename = data.filename
-#         print "You uploaded %s (%d bytes)." % (filename, len(raw))
-#         boundarys = read_svg(raw, [1220,610], 0.08)
-#         return json.dumps(boundarys)
-#     return "You missed a field."
-
-
-# @route('/svg_upload', method='POST')
-# # file echo - used as a fall back for browser not supporting the file API
-# def svg_upload():
-#     data = request.files.get('data')
-#     if data.file:
-#         raw = data.file.read() # This is dangerous for big files
-#         filename = data.filename
-#         print "You uploaded %s (%d bytes)." % (filename, len(raw))
-#         return raw
-#     return "You missed a field."
 
 
 
@@ -501,8 +541,10 @@ argparser.add_argument('port', metavar='serial_port', nargs='?', default=False,
 argparser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 argparser.add_argument('-p', '--public', dest='host_on_all_interfaces', action='store_true',
                     default=False, help='bind to all network devices (default: bind to 127.0.0.1)')
-argparser.add_argument('-f', '--flash', dest='build_and_flash', action='store_true',
+argparser.add_argument('-f', '--flash', dest='flash', action='store_true',
                     default=False, help='flash Arduino with LasaurGrbl firmware')
+argparser.add_argument('-b', '--build', dest='build_flash', action='store_true',
+                    default=False, help='build and flash from firmware/src')
 argparser.add_argument('-l', '--list', dest='list_serial_devices', action='store_true',
                     default=False, help='list all serial devices currently connected')
 argparser.add_argument('-d', '--debug', dest='debug', action='store_true',
@@ -525,14 +567,16 @@ if args.beaglebone:
     ### if running on beaglebone, setup (pin muxing) and use UART1
     # for details see: http://www.nathandumont.com/node/250
     SERIAL_PORT = "/dev/ttyO1"
-    # echo 0 > /sys/kernel/debug/omap_mux/uart1_txd
-    fw = file("/sys/kernel/debug/omap_mux/uart1_txd", "w")
-    fw.write("%X" % (0))
-    fw.close()
-    # echo 20 > /sys/kernel/debug/omap_mux/uart1_rxd
-    fw = file("/sys/kernel/debug/omap_mux/uart1_rxd", "w")
-    fw.write("%X" % ((1 << 5) | 0))
-    fw.close()
+    if os.path.exists("/sys/kernel/debug/omap_mux/uart1_txd"):
+        # we are not on the beaglebone black, setup uart1
+        # echo 0 > /sys/kernel/debug/omap_mux/uart1_txd
+        fw = file("/sys/kernel/debug/omap_mux/uart1_txd", "w")
+        fw.write("%X" % (0))
+        fw.close()
+        # echo 20 > /sys/kernel/debug/omap_mux/uart1_rxd
+        fw = file("/sys/kernel/debug/omap_mux/uart1_rxd", "w")
+        fw.write("%X" % ((1 << 5) | 0))
+        fw.close()
 
     ### Set up atmega328 reset control
     # The reset pin is connected to GPIO2_7 (2*32+7 = 71).
@@ -553,6 +597,29 @@ if args.beaglebone:
     # set the gpio pin high
     # echo 1 > /sys/class/gpio/gpio71/value
     fw = file("/sys/class/gpio/gpio71/value", "w")
+    fw.write("1")
+    fw.flush()
+    fw.close()
+
+    ### Set up atmega328 reset control - BeagleBone Black
+    # The reset pin is connected to GPIO2_9 (2*32+9 = 73).
+    # Setting it to low triggers a reset.
+    # echo 73 > /sys/class/gpio/export
+    try:
+        fw = file("/sys/class/gpio/export", "w")
+        fw.write("%d" % (73))
+        fw.close()
+    except IOError:
+        # probably already exported
+        pass
+    # set the gpio pin to output
+    # echo out > /sys/class/gpio/gpio73/direction
+    fw = file("/sys/class/gpio/gpio73/direction", "w")
+    fw.write("out")
+    fw.close()
+    # set the gpio pin high
+    # echo 1 > /sys/class/gpio/gpio73/value
+    fw = file("/sys/class/gpio/gpio73/value", "w")
     fw.write("1")
     fw.flush()
     fw.close()
@@ -647,12 +714,28 @@ else:
         debug(True)
         if hasattr(sys, "_MEIPASS"):
             print "Data root is: " + sys._MEIPASS             
-    if args.build_and_flash:
+    if args.flash:
         return_code = flash_upload(SERIAL_PORT, resources_dir(), FIRMWARE, HARDWARE)
         if return_code == 0:
             print "SUCCESS: Arduino appears to be flashed."
         else:
             print "ERROR: Failed to flash Arduino."
+    elif args.build_flash:
+        # build
+        buildname = "LasaurGrbl_from_src"
+        firmware_dir = os.path.join(resources_dir(), 'firmware')
+        source_dir = os.path.join(resources_dir(), 'firmware', 'src')
+        return_code = build_firmware(source_dir, firmware_dir, buildname)
+        if return_code != 0:
+            print ret
+        else:
+            print "SUCCESS: firmware built."
+            # flash
+            return_code = flash_upload(SERIAL_PORT, resources_dir(), FIRMWARE, HARDWARE)
+            if return_code == 0:
+                print "SUCCESS: Arduino appears to be flashed."
+            else:
+                print "ERROR: Failed to flash Arduino."
     else:
         if args.host_on_all_interfaces:
             run_with_callback('', NETWORK_PORT)

@@ -33,6 +33,7 @@ class SerialManagerClass:
         self.LASAURGRBL_FIRST_STRING = "LasaurGrbl"
 
         self.fec_redundancy = 2  # use forward error correction
+        # self.fec_redundancy = 1  # use error detection
 
         self.ready_char = '\x12'
         self.request_ready_char = '\x14'
@@ -54,6 +55,8 @@ class SerialManagerClass:
             'serial_stop_request': False,
             'door_open': False,
             'chiller_off': False,
+            'x': False,
+            'y': False,
             'firmware_version': None
         }
 
@@ -102,9 +105,13 @@ class SerialManagerClass:
             for i in range(24):
                 try:
                     s = serial.Serial(port=i, baudrate=baudrate, timeout=2.0)
+                    s.write("?\n")
                     lasaur_hello = s.read(32)
-                    if lasaur_hello.find(self.LASAURGRBL_FIRST_STRING) > -1:
-                        return s.portstr
+                    if lasaur_hello.find("\n") > -1:
+                        if lasaur_hello.find("X") > -1:
+                            if lasaur_hello.find("Y") > -1:
+                                if lasaur_hello.find("V") > -1:
+                                    return s.portstr
                     s.close()
                 except serial.SerialException:
                     pass      
@@ -216,15 +223,16 @@ class SerialManagerClass:
 
 
     def set_pause(self, flag):
-        if flag and not self.is_queue_empty():  # pause
-            print "tx_buffer: " + self.tx_buffer
-            self.status['paused'] = True
-            return True
-        elif not flag:  # unpause
-            self.status['paused'] = False
-            return True
-        else:
+        # returns pause status
+        if self.is_queue_empty():
             return False
+        else:
+            if flag:  # pause
+                self.status['paused'] = True
+                return True
+            else:     # unpause
+                self.status['paused'] = False
+                return False
 
     
     def send_queue_as_ready(self):
@@ -236,7 +244,7 @@ class SerialManagerClass:
                 if len(chars) > 0:
                     ## check for data request
                     if self.ready_char in chars:
-                        print "=========================== READY"
+                        # print "=========================== READY"
                         self.nRequested = self.TX_CHUNK_SIZE
                         #remove control chars
                         chars = chars.replace(self.ready_char, "")
@@ -275,11 +283,11 @@ class SerialManagerClass:
                             sys.stdout.flush()
                         self.tx_buffer = self.tx_buffer[actuallySent:]
                     else:
-                        if (time.time()-self.last_request_ready) > 0.1:
+                        if (time.time()-self.last_request_ready) > 2.0:
                             # ask to send a ready byte
                             # only ask for this when sending is on hold
                             # only ask once (and after a big time out)
-                            print "=========================== REQUEST READY"
+                            # print "=========================== REQUEST READY"
                             try:
                                 actuallySent = self.device.write(self.request_ready_char)
                             except serial.SerialTimeoutException:
@@ -371,6 +379,16 @@ class SerialManagerClass:
                 self.status['chiller_off'] = True
             else:
                 self.status['chiller_off'] = False
+
+            if 'X' in line:
+                self.status['x'] = line[line.find('X')+1:line.find('Y')]
+            # else:
+            #     self.status['x'] = False
+
+            if 'Y' in line:
+                self.status['y'] = line[line.find('Y')+1:line.find('V')]
+            # else:
+            #     self.status['y'] = False
 
             if 'V' in line:
                 self.status['firmware_version'] = line[line.find('V')+1:]                     

@@ -4,10 +4,6 @@ __author__ = 'Stefan Hechenberger <stefan@nortd.com>'
 import re
 import math
 import logging
-try:
-    import xml.etree.cElementTree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
 
 from .webcolors import hex_to_rgb, rgb_to_hex
 from .utilities import matrixMult, matrixApply, vertexScale, parseFloats
@@ -17,9 +13,15 @@ from .svg_tag_reader import SVGTagReader
 logging.basicConfig()
 log = logging.getLogger("svg_reader")
 # log.setLevel(logging.DEBUG)
-log.setLevel(logging.INFO)
-# log.setLevel(logging.WARN)
+# log.setLevel(logging.INFO)
+log.setLevel(logging.WARN)
 
+
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    print log.warn("Using non-C (slow) XML parser.")
+    import xml.etree.ElementTree as ET
 
 
 # SVG parser for the Lasersaur.
@@ -53,24 +55,17 @@ log.setLevel(logging.INFO)
 #
 # ToDo:
 #   * check for out of bounds geometry
-#   * Add support for rastered text and fills.
 
 
 class SVGReader:
     """SVG parser.
 
     Usage:
-    reader = SVGReader(0.08, [400,250])
+    reader = SVGReader(0.08, [1220,610])
     boundarys = reader.parse(open('filename').read())
     """
 
     def __init__(self, tolerance, target_size):
-        
-        #log.debug("SVGReader created with tolerance: "+tolerance+" and size: "+size)            
-        
-        # init helper object for tag reading
-        self._tagReader = SVGTagReader(tolerance)
-
         # parsed path data, paths by color
         # {'#ff0000': [[[x,y], [x,y], ...], [], ..], '#0000ff':[]}
         # Each path is a list of vertices which is a list of two floats.        
@@ -89,10 +84,13 @@ class SVGReader:
         self.tolerance2_half = (0.5*tolerance)**2
         self.tolerance2_px = None
 
+        # init helper object for tag reading
+        self._tagReader = SVGTagReader(self)
+        
         # lasersaur cut setting from SVG file
         # list of triplets ... [(pass#, key, value), ...]
         # pass# designates the pass this lasertag controls
-        # key is the kind of setting (one of: intensity, feedrate, color)
+        # key is the kind of setting (one of: intensity, feedrate, ppi, color)
         # value is the actual value to use
         self.lasertags = []
         
@@ -206,8 +204,8 @@ class SVGReader:
                     h = lh[0]
                     self.dpi = round(25.4*w/self._target_size[0])  # round, assume integer dpi
                     log.info("px unit DPIs from page and target size -> " + str(round(self.dpi,2)))
-            except ValueError:
-                log.warn("invalid w, h numerals") 
+            except ValueError, TypeError:
+                log.warn("invalid w, h numerals or no target_size") 
 
         # 5. Fall back on px unit DPIs default value
         if not self.dpi:
@@ -250,7 +248,7 @@ class SVGReader:
     
     def parse_children(self, domNode, parentNode):
         for child in domNode:
-            log.debug("considering tag: " + child.tag)
+            # log.debug("considering tag: " + child.tag)
             if self._tagReader.has_handler(child):
                 # 1. setup a new node
                 # and inherit from parent
@@ -308,6 +306,9 @@ class SVGReader:
             
                 # recursive call
                 self.parse_children(child, node)
+
+
+
 
 
 # if __name__ == "__main__":

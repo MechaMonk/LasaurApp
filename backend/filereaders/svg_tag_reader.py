@@ -19,12 +19,12 @@ log = logging.getLogger("svg_reader")
 
 class SVGTagReader:
     
-    def __init__(self, tolerance):
+    def __init__(self, svgreader):
 
         # init helper for attribute reading
-        self._attribReader = SVGAttributeReader()
+        self._attribReader = SVGAttributeReader(svgreader)
         # init helper for path handling
-        self._pathReader = SVGPathReader(tolerance)
+        self._pathReader = SVGPathReader(svgreader)
 
         self._handlers = {
             'g': self.g,
@@ -40,6 +40,8 @@ class SVGTagReader:
             'style': self.style,
             'text': True  # text is special, see read_tag func
         }
+
+        self.re_findall_lasertags = re.compile('=pass([0-9]+):([0-9]*)(mm\/min)?:([0-9]*)(%)?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?=').findall
 
 
     def read_tag(self, tag, node):
@@ -59,10 +61,10 @@ class SVGTagReader:
         """
         tagName = self._get_tag(tag)
         if tagName in self._handlers:
-            log.debug("reading tag: " + tagName)
+            # log.debug("reading tag: " + tagName)
             # parse own attributes and overwrite in node
             for attr,value in tag.attrib.items():
-                log.debug("considering attrib: " + attr)
+                # log.debug("considering attrib: " + attr)
                 self._attribReader.read_attrib(node, attr, value)
             # accumulate transformations
             node['xformToWorld'] = matrixMult(node['xformToWorld'], node['xform'])
@@ -204,6 +206,15 @@ class SVGTagReader:
         if (len(embedded) > 1):
             image = Image.open(io.BytesIO(base64.b64decode(embedded[1].encode('utf-8'))))
 
+        # Check the image is a sensible size
+        ppmm = image.size[1] / height;
+        if (ppmm < 2):
+            scale = (height * 2) / height
+            image = image.resize((int(width*scale),int(height*scale)))
+        elif (ppmm > 40):
+            scale = (height * 40) / height
+            image = image.resize((int(width*scale),int(height*scale)))
+			
         converted_image = image.convert("1")
         #converted_image.show()
 
@@ -245,7 +256,7 @@ class SVGTagReader:
         for child in tag:
             text_accum.append(child.text or '')
         text_accum = ' '.join(text_accum)
-        matches = re.findall('=pass([0-9]+):([0-9]*)(mm\/min)?:([0-9]*)(%)?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?=', text_accum)
+        matches = self.re_findall_lasertags(text_accum)
         # Something like: =pass12:2550:100%:#fff000:#ababab:#ccc999=
         # Results in: [('12', '2550', '', '100', '%', ':#fff000', ':#ababab', ':#ccc999', '', '', '')]        
         # convert values to actual numbers
@@ -259,12 +270,15 @@ class SVGTagReader:
             # intensity
             if vals[3]:
                 vals[3] = int(vals[3])
+            # ppi
+            if vals[5]:
+                vals[5] = int(vals[5])
             # colors, strip leading column
-            for ii in range(5,11):
+            for ii in range(7,13):
                 vals[ii] = vals[ii][1:]
             matches[i] = vals
         # store in the following format
-        # [(12, 2550, '', 100, '%', '#fff000', '#ababab', '#ccc999', '', '', '')]
+        # [(12, 2550, '', 100, '%', 0, 'p/in', '#fff000', '#ababab', '#ccc999', '', '', '')]
         node['lasertags'] = matches
 
 
