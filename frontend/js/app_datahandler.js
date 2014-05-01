@@ -140,6 +140,7 @@ DataHandler = {
       var intensity = this.mapConstrainIntesity(pass['intensity']);
       var ppi = this.mapConstrainPpi(pass['ppi']);
       glist.push("G1F"+feedrate+"\nS"+intensity+"\nM4S"+ppi+"\n");
+      //glist.push("G1F"+feedrate+"\nS"+intensity+"\nM4S0\n");
       for (var c=0; c<colors.length; c++) {
         var color = colors[c];
         // Rasters
@@ -159,9 +160,11 @@ DataHandler = {
           // Raster Variables
           var dot_pitch;
           if (ppi == 0)
-            dot_pitch = 0.3
+            dot_pitch = width / pixwidth
           else
-            dot_pitch = 1 / (ppi / 25.4);
+            dot_pitch = 1 / (ppi / 25.4)
+            
+          $().uxmessage('warning', "PPI (for speed):" + ppi + ", Raster Dot size:" + dot_pitch + "mm");
 
           // Calculate the offset based on acceleration and feedrate.
           var offset = 0.5 * feedrate * feedrate / app_settings.acceleration;
@@ -513,19 +516,21 @@ DataHandler = {
           }
         }
       }
-      stats_by_color[color] = {
-        'bbox':bbox_color,
-        'length':path_lenths_color
+      if (paths.length) {
+        stats_by_color[color] = {
+          'bbox':bbox_color,
+          'length':path_lenths_color
+        }
+        // add to total also
+        path_length_all += path_lenths_color;
+        this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
+        this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
       }
-      // add to total also
-      path_length_all += path_lenths_color;
-      this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
-      this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
     }
 
     // rasters
     for (var color in this.rasters_by_color) {
-      var raster_lengths_color = 0;
+      var raster_lengths_color = 1;
       var bbox_color = [Infinity, Infinity, 0, 0];
       var rasters = this.rasters_by_color[color];
       if (rasters) {
@@ -538,15 +543,17 @@ DataHandler = {
           this.bboxExpand(bbox_color, x, y);
           this.bboxExpand(bbox_color, x + width, y + height);
         }
+	  }
+	  if (rasters.length) {
+        stats_by_color[color] = {
+          'bbox':bbox_color,
+          'length':raster_lengths_color
+        }
+        // add to total also
+        path_length_all += raster_lengths_color;
+        this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
+        this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
       }
-      stats_by_color[color] = {
-        'bbox':bbox_color,
-        'length':raster_lengths_color
-      }
-      // add to total also
-      path_length_all += raster_lengths_color;
-      this.bboxExpand(bbox_all, bbox_color[0], bbox_color[1]);
-      this.bboxExpand(bbox_all, bbox_color[2], bbox_color[3]);
     }
     stats_by_color['_all_'] = {
       'bbox':bbox_all,
