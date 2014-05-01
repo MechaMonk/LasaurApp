@@ -112,11 +112,11 @@ def run_with_callback(host, port):
         SERIAL_PORT = SerialManager.match_device(GUESS_PREFIX, BITSPERSECOND)
     SerialManager.connect(SERIAL_PORT, BITSPERSECOND)
     # open web-browser
-    #try:
-    #    webbrowser.open_new_tab('http://127.0.0.1:'+str(port))
-    #    pass
-    #except webbrowser.Error:
-    #    print "Cannot open Webbrowser, please do so manually."
+    try:
+        webbrowser.open_new_tab('http://127.0.0.1:'+str(port))
+        pass
+    except webbrowser.Error:
+        print "Cannot open Webbrowser, please do so manually."
     sys.stdout.flush()  # make sure everything gets flushed
     while 1:
         try:
