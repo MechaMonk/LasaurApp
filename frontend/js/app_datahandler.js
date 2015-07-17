@@ -224,7 +224,7 @@ DataHandler = {
               glist.push("G1X"+x.toFixed(app_settings.num_digits)+
                            "Y"+y.toFixed(app_settings.num_digits)+"\n");
             }
-          }
+          }      
         }
       }
     }
@@ -256,7 +256,7 @@ DataHandler = {
   // rendering //////////////////////////////////
 
 
-  draw : function (canvas, scale, exclude_colors) {
+  draw : function (canvas, scale, exclude_colors) { 
     // draw any path used in passes
     // exclude_colors is optional
     canvas.background('#ffffff');
@@ -332,7 +332,7 @@ DataHandler = {
     }
   },
 
-  draw_bboxes : function (canvas, scale) {
+  draw_bboxes : function (canvas, scale) { 
     // draw with bboxes by color
     // only include colors that are in passe
     var stat;
@@ -662,7 +662,7 @@ DataHandler = {
     }
     return rate.toString();
   },
-
+    
   mapConstrainIntesity : function(intens) {
     intens = parseInt(intens);
     if (intens < 0) {

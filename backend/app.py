@@ -12,7 +12,7 @@ from filereaders import read_svg, read_dxf, read_ngc
 
 
 APPNAME = "lasaurapp"
-VERSION = "13.06b"
+VERSION = "14.11b"
 COMPANY_NAME = "com.nortd.labs"
 SERIAL_PORT = None
 BITSPERSECOND = 57600
@@ -24,15 +24,15 @@ FIRMWARE = "LasaurGrbl.hex"
 TOLERANCE = 0.00635
 
 
-if os.name == 'nt': #sys.platform == 'win32': 
-    GUESS_PREFIX = "Arduino"   
+if os.name == 'nt': #sys.platform == 'win32':
+    GUESS_PREFIX = "Arduino"
 elif os.name == 'posix':
     if sys.platform == "linux" or sys.platform == "linux2":
         GUESS_PREFIX = "2341"  # match by arduino VID
     else:
-        GUESS_PREFIX = "tty.usbmodem"    
+        GUESS_PREFIX = "tty.usbmodem"
 else:
-    GUESS_PREFIX = "no prefix"    
+    GUESS_PREFIX = "no prefix"
 
 
 def resources_dir():
@@ -47,8 +47,8 @@ def resources_dir():
     else:
         # root is one up from this file
         return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
-        
-        
+
+
 def storage_dir():
     directory = ""
     if sys.platform == 'darwin':
@@ -62,10 +62,10 @@ def storage_dir():
         directory = os.path.join(os.path.expandvars('%APPDATA%'), COMPANY_NAME, APPNAME)
     else:
         directory = os.path.join(os.path.expanduser('~'), "." + APPNAME)
-        
+
     if not os.path.exists(directory):
         os.makedirs(directory)
-        
+
     return directory
 
 
@@ -82,6 +82,11 @@ class HackedWSGIRequestHandler(WSGIRequestHandler):
         # return "(a requester)"
         return str(self.client_address[0])
 
+    def log_request(*args, **kw):
+        # if debug:
+            # return wsgiref.simple_server.WSGIRequestHandler.log_request(*args, **kw)
+        pass
+
 
 def run_with_callback(host, port):
     """ Start a wsgiref server instance with control over the main loop.
@@ -95,8 +100,8 @@ def run_with_callback(host, port):
     print "-----------------------------------------------------------------------------"
     print "Bottle server starting up ..."
     print "Serial is set to %d bps" % BITSPERSECOND
-    print "Point your browser to: "    
-    print "http://%s:%d/      (local)" % ('127.0.0.1', port)  
+    print "Point your browser to: "
+    print "http://%s:%d/      (local)" % ('127.0.0.1', port)
     # if host == '':
     #     try:
     #         print "http://%s:%d/   (public)" % (socket.gethostbyname(socket.gethostname()), port)
@@ -104,7 +109,7 @@ def run_with_callback(host, port):
     #         # print "http://beaglebone.local:4444/      (public)"
     #         pass
     print "Use Ctrl-C to quit."
-    print "-----------------------------------------------------------------------------"    
+    print "-----------------------------------------------------------------------------"
     print
     # auto-connect on startup
     global SERIAL_PORT
@@ -118,35 +123,37 @@ def run_with_callback(host, port):
     except webbrowser.Error:
         print "Cannot open Webbrowser, please do so manually."
     sys.stdout.flush()  # make sure everything gets flushed
+    server.timeout = 0
     while 1:
         try:
             SerialManager.send_queue_as_ready()
             server.handle_request()
+            time.sleep(0.0004)
         except KeyboardInterrupt:
             break
     print "\nShutting down..."
     SerialManager.close()
 
-        
 
 
-@route('/longtest')
-def longtest_handler():
-    fp = open("longtest.ngc")
-    for line in fp:
-        SerialManager.queue_gcode_line(line)
-    return "Longtest queued."
-    
+
+# @route('/longtest')
+# def longtest_handler():
+#     fp = open("longtest.ngc")
+#     for line in fp:
+#         SerialManager.queue_gcode_line(line)
+#     return "Longtest queued."
+
 
 
 @route('/css/:path#.+#')
 def static_css_handler(path):
     return static_file(path, root=os.path.join(resources_dir(), 'frontend/css'))
-    
+
 @route('/js/:path#.+#')
 def static_js_handler(path):
     return static_file(path, root=os.path.join(resources_dir(), 'frontend/js'))
-    
+
 @route('/img/:path#.+#')
 def static_img_handler(path):
     return static_file(path, root=os.path.join(resources_dir(), 'frontend/img'))
@@ -154,14 +161,14 @@ def static_img_handler(path):
 @route('/favicon.ico')
 def favicon_handler():
     return static_file('favicon.ico', root=os.path.join(resources_dir(), 'frontend/img'))
-    
+
 
 ### LIBRARY
 
 @route('/library/get/:path#.+#')
 def static_library_handler(path):
     return static_file(path, root=os.path.join(resources_dir(), 'library'), mimetype='text/plain')
-    
+
 @route('/library/list')
 def library_list_handler():
     # return a json list of file names
@@ -180,14 +187,14 @@ def library_list_handler():
 
 def encode_filename(name):
     str(time.time()) + '-' + base64.urlsafe_b64encode(name)
-    
+
 def decode_filename(name):
     index = name.find('-')
     return base64.urlsafe_b64decode(name[index+1:])
-    
+
 
 @route('/queue/get/:name#.+#')
-def static_queue_handler(name): 
+def static_queue_handler(name):
     return static_file(name, root=storage_dir(), mimetype='text/plain')
 
 
@@ -205,7 +212,7 @@ def library_list_handler():
     finally:
         os.chdir(cwd_temp)
     return json.dumps(files)
-    
+
 @route('/queue/save', method='POST')
 def queue_save_handler():
     ret = '0'
@@ -239,7 +246,7 @@ def queue_rm_handler(name):
                 ret = '1'
             finally:
                 pass
-    return ret 
+    return ret
 
 @route('/queue/clear')
 def queue_clear_handler():
@@ -263,7 +270,7 @@ def queue_clear_handler():
             finally:
                 pass
     return ret
-    
+
 @route('/queue/star/:name')
 def queue_star_handler(name):
     ret = '0'
@@ -272,7 +279,7 @@ def queue_star_handler(name):
         if os.path.exists(filename):
             os.rename(filename, filename + '.starred')
             ret = '1'
-    return ret    
+    return ret
 
 @route('/queue/unstar/:name')
 def queue_unstar_handler(name):
@@ -282,7 +289,7 @@ def queue_unstar_handler(name):
         if os.path.exists(filename + '.starred'):
             os.rename(filename + '.starred', filename)
             ret = '1'
-    return ret 
+    return ret
 
 
 
@@ -311,12 +318,12 @@ def stash_download():
 def download(filename, dlname):
     print "requesting: " + filename
     return static_file(filename, root=tempfile.gettempdir(), download=dlname)
-  
+
 
 @route('/serial/:connect')
 def serial_handler(connect):
     if connect == '1':
-        # print 'js is asking to connect serial'      
+        # print 'js is asking to connect serial'
         if not SerialManager.is_connected():
             try:
                 global SERIAL_PORT, BITSPERSECOND, GUESS_PREFIX
@@ -330,19 +337,19 @@ def serial_handler(connect):
                 return ret
             except serial.SerialException:
                 SERIAL_PORT = None
-                print "Failed to connect to serial."    
-                return ""          
+                print "Failed to connect to serial."
+                return ""
     elif connect == '0':
-        # print 'js is asking to close serial'    
+        # print 'js is asking to close serial'
         if SerialManager.is_connected():
             if SerialManager.close(): return "1"
-            else: return ""  
+            else: return ""
     elif connect == "2":
         # print 'js is asking if serial connected'
         if SerialManager.is_connected(): return "1"
         else: return ""
     else:
-        print 'ambigious connect request from js: ' + connect            
+        print 'ambigious connect request from js: ' + connect
         return ""
 
 
@@ -404,8 +411,8 @@ def flash_firmware_handler(firmware_file=FIRMWARE):
     else:
         return_code = flash_upload(SERIAL_PORT, resources_dir(), firmware_file, HARDWARE)
     ret = []
-    ret.append('Using com port: %s<br>' % (SERIAL_PORT))    
-    ret.append('Using firmware: %s<br>' % (firmware_file))    
+    ret.append('Using com port: %s<br>' % (SERIAL_PORT))
+    ret.append('Using firmware: %s<br>' % (firmware_file))
     if return_code == 0:
         print "SUCCESS: Arduino appears to be flashed."
         ret.append('<h2>Successfully Flashed!</h2><br>')
@@ -452,13 +459,11 @@ def reset_atmega_handler():
 def job_submit_handler():
     job_data = request.forms.get('job_data')
     if job_data and SerialManager.is_connected():
-        lines = job_data.split('\n')
-        print "Adding to queue %s lines" % len(lines)
-        for line in lines:
-            SerialManager.queue_gcode_line(line)
+        SerialManager.queue_gcode(job_data)
         return "__ok__"
     else:
         return "serial disconnected"
+
 
 @route('/queue_pct_done')
 def queue_pct_done_handler():
@@ -492,9 +497,9 @@ def file_reader():
 
     if filename and filedata:
         print "You uploaded %s (%d bytes)." % (filename, len(filedata))
-        if filename[-4:] in ['.dxf', '.DXF']: 
+        if filename[-4:] in ['.dxf', '.DXF']:
             res = read_dxf(filedata, TOLERANCE, optimize)
-        elif filename[-4:] in ['.svg', '.SVG']: 
+        elif filename[-4:] in ['.svg', '.SVG']:
             res = read_svg(filedata, dimensions, TOLERANCE, dpi_forced, optimize)
         elif filename[-4:] in ['.ngc', '.NGC']:
             res = read_ngc(filedata, TOLERANCE, optimize)
@@ -511,7 +516,7 @@ def file_reader():
 
 # def check_user_credentials(username, password):
 #     return username in allowed and allowed[username] == password
-#     
+#
 # @route('/login')
 # def login():
 #     username = request.forms.get('username')
@@ -521,7 +526,7 @@ def file_reader():
 #         return "Welcome %s! You are now logged in." % username
 #     else:
 #         return "Login failed."
-# 
+#
 # @route('/logout')
 # def login():
 #     username = request.forms.get('username')
@@ -530,8 +535,8 @@ def file_reader():
 #         response.delete_cookie("account", username, secret=COOKIE_KEY)
 #         return "Welcome %s! You are now logged out." % username
 #     else:
-#         return "Already logged out."  
-  
+#         return "Already logged out."
+
 
 
 ### Setup Argument Parser
@@ -554,7 +559,7 @@ argparser.add_argument('--beaglebone', dest='beaglebone', action='store_true',
 argparser.add_argument('--raspberrypi', dest='raspberrypi', action='store_true',
                     default=False, help='use this for running on Raspberry Pi')
 argparser.add_argument('-m', '--match', dest='match',
-                    default=GUESS_PREFIX, help='match serial device with this string')                                        
+                    default=GUESS_PREFIX, help='match serial device with this string')
 args = argparser.parse_args()
 
 
@@ -564,11 +569,11 @@ print "LasaurApp " + VERSION
 if args.beaglebone:
     HARDWARE = 'beaglebone'
     NETWORK_PORT = 80
+    SERIAL_PORT = "/dev/ttyO1"
+
     ### if running on beaglebone, setup (pin muxing) and use UART1
     # for details see: http://www.nathandumont.com/node/250
-    SERIAL_PORT = "/dev/ttyO1"
     if os.path.exists("/sys/kernel/debug/omap_mux/uart1_txd"):
-        # we are not on the beaglebone black, setup uart1
         # echo 0 > /sys/kernel/debug/omap_mux/uart1_txd
         fw = file("/sys/kernel/debug/omap_mux/uart1_txd", "w")
         fw.write("%X" % (0))
@@ -578,10 +583,26 @@ if args.beaglebone:
         fw.write("%X" % ((1 << 5) | 0))
         fw.close()
 
+    ### if running on BBB/Ubuntu 14.04, setup pin muxing UART1
+    pin24list = glob.glob("/sys/devices/ocp.*/P9_24_pinmux.*/state")
+    for pin24 in pin24list:
+        os.system("echo uart > %s" % (pin24))
+
+    pin26list = glob.glob("/sys/devices/ocp.*/P9_26_pinmux.*/state")
+    for pin26 in pin26list:
+        os.system("echo uart > %s" % (pin26))
+
+
     ### Set up atmega328 reset control
     # The reset pin is connected to GPIO2_7 (2*32+7 = 71).
     # Setting it to low triggers a reset.
     # echo 71 > /sys/class/gpio/export
+
+    ### if running on BBB/Ubuntu 14.04, setup pin muxing GPIO2_7 (pin 46)
+    pin46list = glob.glob("/sys/devices/ocp.*/P8_46_pinmux.*/state")
+    for pin46 in pin46list:
+        os.system("echo gpio > %s" % (pin46))
+
     try:
         fw = file("/sys/class/gpio/export", "w")
         fw.write("%d" % (71))
@@ -601,10 +622,17 @@ if args.beaglebone:
     fw.flush()
     fw.close()
 
+
     ### Set up atmega328 reset control - BeagleBone Black
     # The reset pin is connected to GPIO2_9 (2*32+9 = 73).
     # Setting it to low triggers a reset.
     # echo 73 > /sys/class/gpio/export
+
+    ### if running on BBB/Ubuntu 14.04, setup pin muxing GPIO2_9 (pin 44)
+    pin44list = glob.glob("/sys/devices/ocp.*/P8_44_pinmux.*/state")
+    for pin44 in pin44list:
+        os.system("echo gpio > %s" % (pin44))
+
     try:
         fw = file("/sys/class/gpio/export", "w")
         fw.write("%d" % (73))
@@ -624,8 +652,15 @@ if args.beaglebone:
     fw.flush()
     fw.close()
 
+
     ### read stepper driver configure pin GPIO2_12 (2*32+12 = 76).
     # Low means Geckos, high means SMC11s
+
+    ### if running on BBB/Ubuntu 14.04, setup pin muxing GPIO2_12 (pin 39)
+    pin39list = glob.glob("/sys/devices/ocp.*/P8_39_pinmux.*/state")
+    for pin39 in pin39list:
+        os.system("echo gpio > %s" % (pin39))
+
     try:
         fw = file("/sys/class/gpio/export", "w")
         fw.write("%d" % (76))
@@ -678,7 +713,7 @@ else:
             SERIAL_PORT = args.port
             print "Using serial device '"+ SERIAL_PORT +"' from command line."
         else:
-            # (2) get the serial device from the config file        
+            # (2) get the serial device from the config file
             if os.path.isfile(CONFIG_FILE):
                 fp = open(CONFIG_FILE)
                 line = fp.readline().strip()
@@ -694,12 +729,12 @@ else:
                 print "Using serial device '"+ str(SERIAL_PORT)
                 if os.name == 'posix':
                     # not for windows for now
-                    print "(first device to match: " + args.match + ")"            
+                    print "(first device to match: " + args.match + ")"
         else:
             SERIAL_PORT = SerialManager.match_device(GUESS_PREFIX, BITSPERSECOND)
             if SERIAL_PORT:
                 print "Using serial device '"+ str(SERIAL_PORT) +"' by best guess."
-    
+
     if not SERIAL_PORT:
         print "-----------------------------------------------------------------------------"
         print "WARNING: LasaurApp doesn't know what serial device to connect to!"
@@ -707,13 +742,13 @@ else:
         if os.name == 'nt':
             print "ON WINDOWS: You will also need to setup the virtual com port."
             print "See 'Installing Drivers': http://arduino.cc/en/Guide/Windows"
-        print "-----------------------------------------------------------------------------"      
-    
+        print "-----------------------------------------------------------------------------"
+
     # run
     if args.debug:
         debug(True)
         if hasattr(sys, "_MEIPASS"):
-            print "Data root is: " + sys._MEIPASS             
+            print "Data root is: " + sys._MEIPASS
     if args.flash:
         return_code = flash_upload(SERIAL_PORT, resources_dir(), FIRMWARE, HARDWARE)
         if return_code == 0:
@@ -740,8 +775,4 @@ else:
         if args.host_on_all_interfaces:
             run_with_callback('', NETWORK_PORT)
         else:
-            run_with_callback('127.0.0.1', NETWORK_PORT)    
-
-        
-
-
+            run_with_callback('127.0.0.1', NETWORK_PORT)
