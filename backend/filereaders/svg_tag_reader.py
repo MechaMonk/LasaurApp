@@ -41,7 +41,7 @@ class SVGTagReader:
             'text': True  # text is special, see read_tag func
         }
 
-        self.re_findall_lasertags = re.compile('=pass([0-9]+):([0-9]*)(mm\/min)?:([0-9]*)(%)?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?=').findall
+        self.re_findall_lasertags = re.compile('=pass([0-9]+):([0-9]*)(mm\/min)?:([0-9]*)(%)?:([0-9]*)(ppi)?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?(:#[a-fA-F0-9]{6})?=').findall
 
 
     def read_tag(self, tag, node):

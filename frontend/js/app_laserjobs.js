@@ -310,9 +310,12 @@ function writePassesWidget() {
         var colors = pass['colors'];
         for (var ii=0; ii<colors.length; ii++) {
           var col = colors[ii];
-          var color_order = DataHandler.getColorOrder();
-          if (col in color_order) {
-            $('#passes > div:nth-child('+num+') .colorbtns button:eq('+color_order[col]+')').addClass('active active-strong')
+          var button = 0;
+          for (var color in DataHandler.getColorOrder()) {
+            if (col == color) {
+              $('#passes > div:nth-child('+num+') .colorbtns').children('button:eq('+button+')').addClass('active active-strong')
+            }
+		    button++;
           }
         }
       } else {

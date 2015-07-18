@@ -387,7 +387,7 @@ DataHandler = {
     this.passes = [];
     for (var i=0; i<lasertags.length; i++) {
       var vals = lasertags[i];
-      if (vals.length == 11) {
+      if (vals.length == 13) {
         var pass = vals[0];
         var feedrate = vals[1];
         var intensity = vals[3];
