@@ -209,17 +209,21 @@ class SVGTagReader:
         linked = data.split('file://')
         
         if (len(linked) > 1):
+            log.warn("'image' Opening Linked image: " + linked[1])
             image = Image.open(linked[1])
-        if (len(embedded) > 1):
+        elif (len(embedded) > 1):
             image = Image.open(io.BytesIO(base64.b64decode(embedded[1].encode('utf-8'))))
+        else:
+            log.warn("'image' Unable to access image data, ignored")
+            return
 
         # Check the image is a sensible size
         ppmm = image.size[1] / height;
         if (ppmm < 2):
-            scale = (height * 2) / height
+            scale = (height * 2) / image.size[1]
             image = image.resize((int(width*scale),int(height*scale)))
         elif (ppmm > 40):
-            scale = (height * 40) / height
+            scale = (height * 40) / image.size[1]
             image = image.resize((int(width*scale),int(height*scale)))
 			
         converted_image = image.convert("1")
